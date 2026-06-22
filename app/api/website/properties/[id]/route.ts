@@ -1,19 +1,41 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import {
+  validateWebsiteApiRequest,
+  websiteJsonResponse,
+  websiteOptionsResponse,
+} from "@/lib/website-cors";
 import { getPublicWebsiteProperty } from "@/lib/website-properties";
 
+export const dynamic = "force-dynamic";
+
+export function OPTIONS(request: NextRequest) {
+  return websiteOptionsResponse(request);
+}
+
 export async function GET(
-  _req: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } },
 ) {
+  const unauthorized = validateWebsiteApiRequest(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const property = await getPublicWebsiteProperty(params.id);
     if (!property) {
-      return NextResponse.json({ ok: false, error: "Property not found." }, { status: 404 });
+      return websiteJsonResponse(
+        request,
+        { ok: false, error: "Property not found." },
+        { status: 404 },
+      );
     }
 
-    return NextResponse.json({ ok: true, property });
+    return websiteJsonResponse(request, { ok: true, property });
   } catch (error) {
     console.error("Public website property detail API error:", error);
-    return NextResponse.json({ ok: false, error: "Unable to load property." }, { status: 500 });
+    return websiteJsonResponse(
+      request,
+      { ok: false, error: "Unable to load property." },
+      { status: 500 },
+    );
   }
 }

@@ -1,13 +1,16 @@
 import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, readdirSync, statSync } from "node:fs";
 
-const npxCmd = process.platform === "win32" ? "npx.cmd" : "npx";
+const isWindows = process.platform === "win32";
+const npxCmd = "npx";
 const prismaEnginePattern = /^(schema-engine|migration-engine|query-engine|prisma-fmt)(?:-|$)/;
 
 function runPrisma(args, { allowFailure = false } = {}) {
   const result = spawnSync(npxCmd, ["prisma", ...args], {
     encoding: "utf8",
+    shell: isWindows,
     stdio: "pipe",
+    windowsHide: true,
   });
 
   if (result.stdout) process.stdout.write(result.stdout);
@@ -66,13 +69,6 @@ const retriesRaw = Number.parseInt(process.env.PRISMA_MIGRATE_DEPLOY_RETRIES ?? 
 const delayRaw = Number.parseInt(process.env.PRISMA_MIGRATE_DEPLOY_DELAY_MS ?? "15000", 10);
 const maxRetries = Number.isFinite(retriesRaw) && retriesRaw > 0 ? retriesRaw : 5;
 const retryDelayMs = Number.isFinite(delayRaw) && delayRaw > 0 ? delayRaw : 15000;
-
-runPrisma(["migrate", "resolve", "--rolled-back", "20260227000000_rooms_passive_multi_vacancy"], {
-  allowFailure: true,
-});
-runPrisma(["migrate", "resolve", "--rolled-back", "20260228000000_property_status_simplify"], {
-  allowFailure: true,
-});
 
 for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
   const { exitCode, output } = runPrisma(["migrate", "deploy"], { allowFailure: true });

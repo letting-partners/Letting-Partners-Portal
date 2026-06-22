@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
+const optionalString = z.preprocess(emptyToUndefined, z.string().optional());
+const optionalPositiveInt = z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional());
+
 const baseEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -22,25 +26,25 @@ const baseEnvSchema = z.object({
 
 const consoleEmailSchema = baseEnvSchema.extend({
   EMAIL_PROVIDER: z.literal("console").default("console"),
-  RESEND_API_KEY: z.string().optional(),
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.coerce.number().int().positive().optional(),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASSWORD: z.string().optional(),
+  RESEND_API_KEY: optionalString,
+  SMTP_HOST: optionalString,
+  SMTP_PORT: optionalPositiveInt,
+  SMTP_USER: optionalString,
+  SMTP_PASSWORD: optionalString,
 });
 
 const resendEmailSchema = baseEnvSchema.extend({
   EMAIL_PROVIDER: z.literal("resend"),
   RESEND_API_KEY: z.string().min(1, "RESEND_API_KEY is required when EMAIL_PROVIDER=resend"),
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.coerce.number().int().positive().optional(),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASSWORD: z.string().optional(),
+  SMTP_HOST: optionalString,
+  SMTP_PORT: optionalPositiveInt,
+  SMTP_USER: optionalString,
+  SMTP_PASSWORD: optionalString,
 });
 
 const smtpEmailSchema = baseEnvSchema.extend({
   EMAIL_PROVIDER: z.literal("smtp"),
-  RESEND_API_KEY: z.string().optional(),
+  RESEND_API_KEY: optionalString,
   SMTP_HOST: z.string().min(1, "SMTP_HOST is required when EMAIL_PROVIDER=smtp"),
   SMTP_PORT: z.coerce.number().int().positive(),
   SMTP_USER: z.string().min(1, "SMTP_USER is required when EMAIL_PROVIDER=smtp"),
