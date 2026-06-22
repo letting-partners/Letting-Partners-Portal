@@ -1,0 +1,836 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  AGENT
+}
+
+enum CommissionType {
+  FIXED
+  FLEXIBLE
+}
+
+enum PropertyStatus {
+  DRAFT
+  AVAILABLE
+  CLOSED
+}
+
+enum PropertyCategory {
+  HOUSE
+  FLAT
+  STUDIO_FLAT
+}
+
+enum WorkflowCallOutcome {
+  CONFIRMED
+  FOLLOW_UP
+  NOT_INTERESTED
+}
+
+enum VacancyType {
+  SINGLE
+  MULTIPLE
+}
+
+enum RoomStatus {
+  AVAILABLE
+  UNDER_OFFER
+  CLOSED
+}
+
+enum CallDirection {
+  INCOMING
+  OUTGOING
+  INTERNAL
+}
+
+enum CallStatus {
+  MISSED
+  RINGING
+  ANSWERED
+  REJECTED
+  COMPLETED
+  FAILED
+}
+
+enum CallRecordStatus {
+  CONNECTED
+  FAILED
+  NO_ANSWER
+  FOLLOW_UP
+  RESCHEDULED
+  VOICEMAIL
+}
+
+enum ScheduledCallStatus {
+  PENDING
+  DONE
+  CANCELLED
+  MISSED
+}
+
+enum DialingArea {
+  AREA_1
+  AREA_2
+  AREA_3
+  AREA_4
+  AREA_5
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PropertyType {
+  PRIVATE
+  SHARED
+}
+
+enum LivingRoomType {
+  PRIVATE
+  SHARED
+  NONE
+}
+
+enum RoomType {
+  STUDIO_ROOM
+  SINGLE_ROOM
+  DOUBLE_ROOM
+  ENSUITE_ROOM
+  LOFT
+}
+
+enum ApprovalEntityType {
+  LANDLORD
+  PROPERTY
+  TENANT
+  POTENTIAL_TENANT
+  POTENTIAL_LANDLORD
+}
+
+model User {
+  id               String   @id @default(uuid()) @db.Uuid
+  email            String   @unique
+  passwordHash     String
+  role             UserRole
+  agentDisplayName String
+  profilePicture   String?
+  agentPhone       String?
+  isActive         Boolean  @default(true)
+  lastActivityAt   DateTime?
+  createdAt        DateTime @default(now())
+
+  createdLandlords Landlord[]    @relation("LandlordCreatedBy")
+  updatedLandlords Landlord[]    @relation("LandlordUpdatedBy")
+  ownedLandlords   Landlord[]    @relation("LandlordOwnerAgent")
+  ownedProperties  Property[]    @relation("PropertyOwnerAgent")
+  closedSales      Sale[]        @relation("SaleClosedBy")
+  otpCodes         OTPCode[]
+  auditLogs        AuditLog[]
+  sentMessages     ChatMessage[]    @relation("MessageSentBy")
+  receivedMessages ChatMessage[]    @relation("MessageReceivedBy")
+  commissionUpdates CommissionConfig[] @relation("CommissionConfigUpdatedBy")
+  dialerSetting      AgentDialerSetting?
+  dialerContacts     DialerContact[]          @relation("DialerContactOwner")
+  dialerLabels       DialerContactLabel[]     @relation("DialerLabelOwner")
+  dialerCalls        DialerCall[]             @relation("DialerCallAgent")
+  dialerCounterCalls DialerCall[]             @relation("DialerCallCounterpart")
+  dialerDomainUpdates DialerDomainConfig[]    @relation("DialerDomainUpdatedBy")
+  potentialTenants    PotentialTenant[]       @relation("PotentialTenantAddedBy")
+  potentialLandlords  PotentialLandlord[]     @relation("PotentialLandlordAddedBy")
+  continuedPotentialLandlords PotentialLandlord[] @relation("PotentialLandlordContinuedBy")
+  addedTenants        Tenant[]                @relation("TenantAddedBy")
+  dailyReports        DailyReport[]           @relation("DailyReportAgent")
+  callRecords         CallRecord[]            @relation("CallRecordAgent")
+  scheduledCalls      ScheduledCall[]         @relation("ScheduledCallAgent")
+  agentNotes          AgentNote[]             @relation("AgentNoteOwner")
+  notifications       Notification[]          @relation("UserNotifications")
+  requestedEditApprovals EditApproval[]       @relation("RequestedEditApprovals")
+  reviewedEditApprovals  EditApproval[]       @relation("ReviewedEditApprovals")
+  uploadedMediaAssets    MediaAsset[]         @relation("MediaAssetUploadedBy")
+  landlordLookupEvents   LandlordLookupEvent[] @relation("LandlordLookupAgent")
+
+  @@index([agentDisplayName])
+  @@index([role, isActive])
+}
+
+model Landlord {
+  id             String   @id @default(uuid()) @db.Uuid
+  landlordName   String
+  landlordNumber String
+  phoneE164      String?
+  phoneLast10    String   @unique
+  email          String?
+  notes           String?
+  isPassive       Boolean   @default(false)
+  passiveMarkedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdByUserId String    @db.Uuid
+  updatedByUserId String    @db.Uuid
+  ownerAgentId    String    @db.Uuid
+
+  createdBy   User         @relation("LandlordCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  updatedBy   User         @relation("LandlordUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ownerAgent  User         @relation("LandlordOwnerAgent", fields: [ownerAgentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  properties   Property[]
+  callRecords  CallRecord[] @relation("CallRecordLandlord")
+  lookupEvents  LandlordLookupEvent[] @relation("LookupEventLandlord")
+
+  @@index([landlordName])
+  @@index([landlordNumber])
+  @@index([ownerAgentId])
+  @@index([ownerAgentId, createdAt])
+  @@index([createdAt])
+}
+
+model Property {
+  id                    String         @id @default(uuid()) @db.Uuid
+  landlordId            String         @db.Uuid
+  ownerAgentId          String         @db.Uuid
+  propertyRef           String
+  title                 String?
+  description           String?
+  addressLine1          String?
+  addressLine2          String?
+  city                  String?
+  county                String?
+  postcode              String?
+  postcodeCanonical     String?
+  propertyType          String?
+  beds                  Int?
+  baths                 Int?
+  status                PropertyStatus @default(DRAFT)
+  vacancyType           VacancyType    @default(SINGLE)
+  propertyCategory      PropertyCategory?
+  isSharedProperty      Boolean        @default(false)
+  landlordDemand        Decimal?       @db.Decimal(14, 2)
+  expectedCommissionPct Decimal?       @db.Decimal(5, 2)
+  expectedCommissionAmt Decimal?       @db.Decimal(14, 2)
+  totalRooms            Int?
+  availableRooms        Int?
+  rentPerMonth          Decimal?       @db.Decimal(14, 2)
+  rentPerWeek           Decimal?       @db.Decimal(14, 2)
+  depositAmount         Decimal?       @db.Decimal(14, 2)
+  isFurnished           Boolean?
+  personsAllowed        Int?
+  petsAllowed           Boolean?
+  dssAllowed            Boolean?
+  childrenAllowed       Boolean?
+  availabilityDate      DateTime?
+  livingLandlord        Boolean?
+  publishedToWebsite    Boolean        @default(false)
+
+  // V2 revamp fields
+  propType              PropertyType?
+  garden                Boolean?
+  parking               Boolean?
+  billsIncluded         Boolean?
+  balconyRoofTerrace    Boolean?
+  disabledAccess        Boolean?
+  livingRoom            LivingRoomType?
+  broadbandIncluded     Boolean?
+  couplesAllowed        Boolean?
+
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  landlord   Landlord       @relation(fields: [landlordId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  ownerAgent User           @relation("PropertyOwnerAgent", fields: [ownerAgentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sales      Sale[]
+  rooms      PropertyRoom[]
+  mediaLinks PropertyMedia[]
+
+  @@index([landlordId])
+  @@index([ownerAgentId])
+  @@index([propertyRef])
+  @@index([status])
+  @@index([city])
+  @@index([postcode])
+  @@index([postcodeCanonical])
+  @@index([createdAt])
+  @@index([ownerAgentId, createdAt])
+  @@index([landlordId, createdAt])
+}
+
+model MediaAsset {
+  id               String   @id @default(uuid()) @db.Uuid
+  uploadedByUserId String?  @db.Uuid
+  name             String
+  mimeType         String
+  dataUrl          String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  uploadedBy   User?          @relation("MediaAssetUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  propertyLinks PropertyMedia[]
+
+  @@index([uploadedByUserId, createdAt])
+  @@index([createdAt])
+}
+
+model PropertyMedia {
+  propertyId   String @db.Uuid
+  mediaAssetId String @db.Uuid
+  sortOrder    Int    @default(0)
+  altText      String?
+
+  property   Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  mediaAsset MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([propertyId, mediaAssetId])
+  @@index([mediaAssetId])
+  @@index([propertyId, sortOrder])
+}
+
+model Sale {
+  id               String   @id @default(uuid()) @db.Uuid
+  propertyId       String   @db.Uuid
+  roomId           String?  @unique @db.Uuid
+  closedByUserId   String   @db.Uuid
+  finalAmount      Decimal  @db.Decimal(14, 2)
+  commissionPct    Decimal  @db.Decimal(5, 2)
+  commissionAmount Decimal  @db.Decimal(14, 2)
+  otherCosts       Decimal? @db.Decimal(14, 2)
+  profit           Decimal  @db.Decimal(14, 2)
+  closedAt         DateTime @default(now())
+
+  property Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  room     PropertyRoom? @relation(fields: [roomId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  closedBy User          @relation("SaleClosedBy", fields: [closedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  tenant   Tenant?
+
+  @@index([propertyId])
+  @@index([closedByUserId])
+  @@index([closedAt])
+}
+
+model PropertyRoom {
+  id                    String      @id @default(uuid()) @db.Uuid
+  propertyId            String      @db.Uuid
+  roomName              String
+  landlordDemand        Decimal?    @db.Decimal(14, 2)
+  expectedCommissionPct Decimal?    @db.Decimal(5, 2)
+  rentPerWeek           Decimal?    @db.Decimal(14, 2)
+  sortOrder             Int         @default(0)
+  status                RoomStatus  @default(AVAILABLE)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  // V2 revamp fields
+  roomType              RoomType?
+  rentPerMonth          Decimal?    @db.Decimal(14, 2)
+  depositAmount         Decimal?    @db.Decimal(14, 2)
+  expectedCommissionAmt Decimal?    @db.Decimal(14, 2)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sale     Sale?
+
+  @@index([propertyId])
+}
+
+model Tenant {
+  id                  String    @id @default(uuid()) @db.Uuid
+  saleId              String?   @unique @db.Uuid
+  addedByAgentId      String?   @db.Uuid
+  fullName            String
+  email               String?
+  phone               String?
+  phoneE164           String?
+  phoneLast10         String?
+  currentAddress      String?
+  postcode            String?
+  postcodeCanonical   String?
+  preferredArea       String?
+  budgetMin           Decimal?  @db.Decimal(14, 2)
+  budgetMax           Decimal?  @db.Decimal(14, 2)
+  moveInDate          DateTime?
+  moveInFlexible      Boolean?
+  householdSize       Int?
+  petsAllowed         Boolean?
+  childrenAllowed     Boolean?
+  rentAmount          Decimal?  @db.Decimal(14, 2)
+  depositAmount       Decimal?  @db.Decimal(14, 2)
+  notes               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // V2 revamp fields
+  firstName             String?
+  lastName              String?
+  accommodationType     String?
+  countryOriginal       String?
+  nationality           String?
+  tenantRoomType        RoomType?
+  numberOfOccupants     Int?
+  numberOfChildren      Int?
+  onDSS                 Boolean?
+  currentlyEmployed     Boolean?
+  annualIncome          Decimal?  @db.Decimal(14, 2)
+  currentLivingPostcode String?
+  workplacePostcode     String?
+  maximumBudget         Decimal?  @db.Decimal(14, 2)
+  workingProfession     String?
+  immigrationStatus     String?
+
+  sale         Sale?        @relation(fields: [saleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  addedByAgent User?        @relation("TenantAddedBy", fields: [addedByAgentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  callRecords  CallRecord[] @relation("CallRecordTenant")
+
+  @@index([saleId])
+  @@index([fullName])
+  @@index([createdAt])
+  @@index([phoneLast10])
+  @@index([postcodeCanonical])
+  @@index([addedByAgentId])
+}
+
+model OTPCode {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  entityType String
+  entityId   String
+  action     String
+  metadata   Json?
+  beforeJson Json?
+  afterJson  Json?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([entityType, entityId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model ChatMessage {
+  id         String   @id @default(uuid()) @db.Uuid
+  fromUserId String   @db.Uuid
+  toUserId   String   @db.Uuid
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  fromUser User @relation("MessageSentBy",     fields: [fromUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  toUser   User @relation("MessageReceivedBy", fields: [toUserId],   references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([fromUserId, toUserId, createdAt])
+  @@index([toUserId, fromUserId, createdAt])
+  @@index([createdAt])
+}
+
+model AgentDialerSetting {
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @unique @db.Uuid
+  extensionNumber     String?
+  extensionName       String?
+  providerUsername    String?
+  providerPassword    String?
+  autoDetectExtension Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([extensionNumber])
+}
+
+model DialerDomainConfig {
+  id            String   @id @default("singleton")
+  dialerMode    String   @default("SIP")
+  linkusWebClientUrl String?
+  pbxPlatform   String?
+  domain        String?
+  sipPort       Int?
+  sipTransport  String?
+  websocketHost String?
+  isEnabled     Boolean  @default(true)
+  updatedAt     DateTime @updatedAt
+  updatedById   String?  @db.Uuid
+
+  updatedBy User? @relation("DialerDomainUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+}
+
+model DialerContactLabel {
+  id          String   @id @default(uuid()) @db.Uuid
+  ownerUserId String   @db.Uuid
+  name        String
+  colorHex    String   @default("#C9A84C")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ownerUser User                        @relation("DialerLabelOwner", fields: [ownerUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  contacts  DialerContactLabelOnContact[]
+
+  @@unique([ownerUserId, name])
+  @@index([ownerUserId, createdAt])
+}
+
+model DialerContact {
+  id              String   @id @default(uuid()) @db.Uuid
+  ownerUserId     String   @db.Uuid
+  fullName        String
+  phoneNumber     String
+  extensionNumber String?
+  email           String?
+  notes           String?
+  isFavorite      Boolean  @default(false)
+  autoAdded       Boolean  @default(false)
+  sourceType      String?
+  sourceLandlordId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  ownerUser User                        @relation("DialerContactOwner", fields: [ownerUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  labels    DialerContactLabelOnContact[]
+  calls     DialerCall[]
+
+  @@index([ownerUserId, createdAt])
+  @@index([ownerUserId, fullName])
+  @@index([phoneNumber])
+}
+
+model DialerContactLabelOnContact {
+  contactId String @db.Uuid
+  labelId   String @db.Uuid
+
+  contact DialerContact      @relation(fields: [contactId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  label   DialerContactLabel @relation(fields: [labelId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([contactId, labelId])
+  @@index([labelId])
+}
+
+model DialerCall {
+  id               String        @id @default(uuid()) @db.Uuid
+  agentUserId      String        @db.Uuid
+  counterpartUserId String?      @db.Uuid
+  contactId        String?       @db.Uuid
+  direction        CallDirection
+  status           CallStatus    @default(RINGING)
+  peerName         String?
+  peerNumber       String?
+  peerExtension    String?
+  startedAt        DateTime      @default(now())
+  answeredAt       DateTime?
+  endedAt          DateTime?
+  durationSec      Int           @default(0)
+  recordingUrl     String?
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  agentUser      User         @relation("DialerCallAgent", fields: [agentUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  counterpartUser User?       @relation("DialerCallCounterpart", fields: [counterpartUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  contact         DialerContact? @relation(fields: [contactId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([agentUserId, startedAt])
+  @@index([agentUserId, direction, status])
+  @@index([counterpartUserId])
+  @@index([contactId])
+}
+
+model PotentialTenant {
+  id             String   @id @default(uuid()) @db.Uuid
+  addedByAgent   User     @relation("PotentialTenantAddedBy", fields: [addedByAgentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  addedByAgentId String   @db.Uuid
+  fullName       String
+  email          String?
+  phone          String?
+  phoneLast10    String?
+  phoneE164      String?
+  postcode       String?
+  postcodeCanonical String?
+  preferredArea  String?
+  interestedIn   String?
+  budget         String?
+  budgetMin      String?
+  budgetMax      String?
+  moveInDate     DateTime?
+  moveInFlexible  Boolean?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // V2 revamp fields
+  firstName             String?
+  lastName              String?
+  accommodationType     String?
+  countryOriginal       String?
+  nationality           String?
+  tenantRoomType        RoomType?
+  numberOfOccupants     Int?
+  numberOfChildren      Int?
+  onDSS                 Boolean?
+  currentlyEmployed     Boolean?
+  annualIncome          Decimal?  @db.Decimal(14, 2)
+  currentLivingPostcode String?
+  workplacePostcode     String?
+  maximumBudget         Decimal?  @db.Decimal(14, 2)
+  workingProfession     String?
+  immigrationStatus     String?
+
+  @@index([addedByAgentId, createdAt])
+  @@index([createdAt])
+  @@index([fullName])
+  @@index([phoneLast10])
+}
+
+model PotentialLandlord {
+  id                       String   @id @default(uuid()) @db.Uuid
+  addedByAgent             User     @relation("PotentialLandlordAddedBy", fields: [addedByAgentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  addedByAgentId           String   @db.Uuid
+  fullName                 String
+  phone                    String
+  phoneLast10              String
+  phoneE164                String?
+  email                    String?
+  notes                    String?
+  followUpScheduledAt      DateTime?
+  followUpLockedUntil      DateTime?
+  followUpContinuedAt      DateTime?
+  followUpContinuedByUserId String?  @db.Uuid
+  isFollowUpLocked         Boolean  @default(false)
+  email1hSent              Boolean  @default(false)
+  email5minSent            Boolean  @default(false)
+  notifSent                Boolean  @default(false)
+  firstName                String?
+  lastName                 String?
+  isLocked                 Boolean  @default(false)
+  lockedUntil              DateTime?
+  scheduledAt              DateTime?
+  reminder1hSent           Boolean  @default(false)
+  reminder5mSent           Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  followUpContinuedBy User? @relation("PotentialLandlordContinuedBy", fields: [followUpContinuedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  lookupEvents        LandlordLookupEvent[] @relation("LookupEventPotentialLandlord")
+
+  @@index([addedByAgentId, createdAt])
+  @@index([createdAt])
+  @@index([phoneLast10])
+}
+
+model LandlordLookupEvent {
+  id                  String   @id @default(uuid()) @db.Uuid
+  agentId             String   @db.Uuid
+  phoneNo             String
+  phoneLast10         String
+  phoneE164           String?
+  ownershipState      String
+  landlordId          String?  @db.Uuid
+  potentialLandlordId  String?  @db.Uuid
+  isLocked            Boolean  @default(false)
+  lockedUntil         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  agent            User              @relation("LandlordLookupAgent", fields: [agentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  landlord         Landlord?         @relation("LookupEventLandlord", fields: [landlordId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  potentialLandlord PotentialLandlord? @relation("LookupEventPotentialLandlord", fields: [potentialLandlordId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([agentId, createdAt])
+  @@index([phoneLast10])
+  @@index([landlordId])
+  @@index([potentialLandlordId])
+}
+
+model DailyReport {
+  id                 String   @id @default(uuid()) @db.Uuid
+  agentId            String   @db.Uuid
+  reportDate         DateTime @db.Date
+  dialingArea        DialingArea?
+  callsMade          Int      @default(0)
+  callsConnected     Int      @default(0)
+  callsFailed        Int      @default(0)
+  landlordConfirm    Int      @default(0)
+  viewingsArranged   Int      @default(0)
+  successfulViewings Int      @default(0)
+  followUp           Int      @default(0)
+  confirmedCalls     Int      @default(0)
+  followUpCalls      Int      @default(0)
+  notInterestedCalls Int      @default(0)
+  lookupEvents       Int      @default(0)
+  propertiesCreated  Int      @default(0)
+  tenantsCreated     Int      @default(0)
+  workflowSummary    Json?
+  reSchedule         Int      @default(0)
+  salesClosed        Int      @default(0)
+  totalSearched      Int      @default(0)
+  propertiesConfirmed Int     @default(0)
+  notInterested      Int      @default(0)
+  potentialTenants   Int      @default(0)
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  agent User @relation("DailyReportAgent", fields: [agentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([agentId, reportDate])
+  @@index([agentId, reportDate])
+  @@index([reportDate])
+}
+
+model EditApproval {
+  id            String             @id @default(uuid()) @db.Uuid
+  entityType    ApprovalEntityType
+  entityId      String             @db.Uuid
+  requestedById String             @db.Uuid
+  reviewedById  String?            @db.Uuid
+  status        ApprovalStatus     @default(PENDING)
+  summary       String?
+  beforeJson    Json
+  proposedJson  Json
+  reviewerNotes String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  reviewedAt    DateTime?
+
+  requestedBy User  @relation("RequestedEditApprovals", fields: [requestedById], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  reviewedBy  User? @relation("ReviewedEditApprovals", fields: [reviewedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([status, createdAt])
+  @@index([entityType, entityId, status])
+  @@index([requestedById, createdAt])
+}
+
+model CallRecord {
+  id                    String           @id @default(uuid()) @db.Uuid
+  agentId               String           @db.Uuid
+  phoneNumber           String
+  phoneLast10           String?
+  phoneE164             String?
+  status                CallRecordStatus @default(CONNECTED)
+  outcome               WorkflowCallOutcome?
+  landlordName          String?
+  followUpAt            DateTime?
+  propertyId            String?          @db.Uuid
+  potentialLandlordId   String?          @db.Uuid
+  notes                 String?
+  convertedToLandlordId String?          @db.Uuid
+  convertedToTenantId   String?          @db.Uuid
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  agent             User      @relation("CallRecordAgent", fields: [agentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  convertedLandlord Landlord? @relation("CallRecordLandlord", fields: [convertedToLandlordId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  convertedTenant   Tenant?   @relation("CallRecordTenant", fields: [convertedToTenantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([agentId, createdAt])
+  @@index([createdAt])
+  @@index([phoneNumber])
+  @@index([propertyId])
+  @@index([potentialLandlordId])
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  type      String
+  title     String
+  body      String
+  metadata  Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+}
+
+model ScheduledCall {
+  id          String              @id @default(uuid()) @db.Uuid
+  agentId     String              @db.Uuid
+  phoneNumber String
+  contactName String?
+  scheduledAt DateTime
+  notes       String?
+  status      ScheduledCallStatus @default(PENDING)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  agent User @relation("ScheduledCallAgent", fields: [agentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([agentId, scheduledAt])
+  @@index([scheduledAt])
+  @@index([agentId, status])
+}
+
+model AgentNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  agentId   String   @db.Uuid
+  title     String?
+  content   String
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent User @relation("AgentNoteOwner", fields: [agentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([agentId, createdAt])
+  @@index([agentId, isPinned])
+}
+
+// Singleton commission configuration (always upserted with id = "singleton")
+model CommissionConfig {
+  id             String         @id @default("singleton")
+  type           CommissionType @default(FIXED)
+  fixedAmount    Decimal?       @db.Decimal(14, 2)
+  fixedCurrency  String?
+  flexibleRanges Json?
+  updatedAt      DateTime       @updatedAt
+  updatedById    String?        @db.Uuid
+
+  updatedBy User? @relation("CommissionConfigUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+}
+
+// Legacy tables preserved in DB — kept here to prevent accidental drops
+model CallLog {
+  id                  String    @id @default(uuid()) @db.Uuid
+  agentId             String    @db.Uuid
+  phone               String
+  outcome             String?
+  notes               String?
+  phoneLast10         String?
+  landlordFirstName   String?
+  landlordLastName    String?
+  potentialLandlordId String?   @db.Uuid
+  status              String?
+  followUpScheduledAt DateTime?
+  createdAt           DateTime  @default(now())
+}
+
+model LandlordLookupLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  agentId      String   @db.Uuid
+  phone        String
+  phoneLast10  String?
+  result       String
+  createdAt    DateTime @default(now())
+}

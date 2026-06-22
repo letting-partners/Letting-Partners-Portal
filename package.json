@@ -1,0 +1,51 @@
+{
+  "name": "letting-partners",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "postinstall": "prisma generate",
+    "build": "next build",
+    "build:with-migrate": "npm run prisma:migrate:deploy && next build",
+    "start": "next start -p 3002",
+    "lint": "next lint",
+    "test": "node --import tsx --test tests/index.test.ts",
+    "test:unit": "node --import tsx --test tests/core-rules.unit.test.ts tests/landlord-passive-policy.test.ts",
+    "test:integration:pg": "node --import tsx --test tests/postgres-landlord-constraints.integration.test.ts tests/otp-flow.integration.test.ts",
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "node scripts/prisma-migrate-build.mjs",
+    "prisma:seed": "prisma db seed",
+    "db:clear-sales": "node --import tsx scripts/clear-sales.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "lucide-react": "^1.20.0",
+    "next": "^14.2.0",
+    "nodemailer": "^8.0.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sip.js": "^0.21.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20.16.11",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.0",
+    "prisma": "^5.22.0",
+    "tailwindcss": "^4",
+    "tsx": "^4.20.5",
+    "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
