@@ -173,6 +173,10 @@ export default function HomePage() {
               <Link href="/landlord-services/property-letting" className="lp-btn lp-btn--glass">
                 List Your Property
               </Link>
+              <Link href="/login" className="lp-btn lp-btn--glass lp-hero-portal-btn">
+                <LPIcon name="key" size={16} />
+                Portal Sign In
+              </Link>
             </div>
           </div>
 

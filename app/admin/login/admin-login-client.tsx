@@ -1,10 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UIAlert } from "@/components/ui/alert";
 import { UIButton } from "@/components/ui/button";
-import { UICard, UICardBody } from "@/components/ui/card";
 import { UIInput } from "@/components/ui/input";
 import { apiPost } from "@/lib/api-client";
 
@@ -108,17 +108,70 @@ export function AdminLoginClient({ initialEmail = "", reason }: Props) {
   }
 
   return (
-    <div className="auth-page">
-      <div className="auth-brand">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/lp-logo.webp" alt="Letting Partners" className="auth-logo" />
-        <h1 className="auth-title">Admin Sign In</h1>
-        <p className="auth-subtitle">Use your admin credentials to sign in. OTP is only requested after 12 hours of inactivity.</p>
+    <div className="auth-split">
+      {/* ── Left: brand panel ── */}
+      <div className="auth-left">
+        <div className="auth-left-glow-a" />
+        <div className="auth-left-glow-b" />
+        <div className="auth-left-grid" />
+
+        <div className="auth-left-content">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/lp-logo.webp" alt="Letting Partners" className="auth-left-logo" />
+
+          <span className="auth-left-badge">
+            <span className="auth-left-badge-dot" />
+            Administration Portal
+          </span>
+
+          <h1 className="auth-left-title">
+            Complete control
+            <span className="auth-left-title-accent">at your fingertips.</span>
+          </h1>
+
+          <p className="auth-left-desc">
+            The Letting Partners admin console gives you oversight of every agent, property, tenant, and commission record — with audit trails and real-time reporting.
+          </p>
+
+          <ul className="auth-left-features">
+            <li className="auth-left-feature">
+              <span className="auth-left-feature-icon">✓</span>
+              <div className="auth-left-feature-body">
+                <strong>Agent & Performance Management</strong>
+                <span>Monitor agent activity, commissions, and KPIs in real time</span>
+              </div>
+            </li>
+            <li className="auth-left-feature">
+              <span className="auth-left-feature-icon">✓</span>
+              <div className="auth-left-feature-body">
+                <strong>Full Platform Oversight</strong>
+                <span>Access all properties, landlords, tenants, and sales records</span>
+              </div>
+            </li>
+            <li className="auth-left-feature">
+              <span className="auth-left-feature-icon">✓</span>
+              <div className="auth-left-feature-body">
+                <strong>Audit Log & Compliance</strong>
+                <span>Every action is tracked with timestamped audit entries</span>
+              </div>
+            </li>
+          </ul>
+        </div>
       </div>
 
-      <UICard style={{ width: "100%", maxWidth: 420 }}>
-        <UICardBody>
-          <form className="field-grid" onSubmit={onSubmit}>
+      {/* ── Right: form panel ── */}
+      <div className="auth-right">
+        <div className="auth-right-inner">
+          <div className="auth-right-head">
+            <h2 className="auth-right-title">Admin sign in</h2>
+            <p className="auth-right-sub">
+              Use your administrator credentials to access the control panel. OTP is only requested after 12 hours of inactivity.
+            </p>
+          </div>
+
+          {message ? <UIAlert type={message.type}>{message.text}</UIAlert> : null}
+
+          <form className="field-grid" onSubmit={onSubmit} style={{ marginTop: "1.25rem" }}>
             <label className="field">
               <span className="label">Email address</span>
               <UIInput
@@ -143,14 +196,33 @@ export function AdminLoginClient({ initialEmail = "", reason }: Props) {
               {errors.password ? <span className="error-text">{errors.password}</span> : null}
             </label>
 
-            {message ? <UIAlert type={message.type}>{message.text}</UIAlert> : null}
-
-            <UIButton type="submit" disabled={busy} style={{ width: "100%", justifyContent: "center" }}>
-              {busy ? "Signing in..." : "Continue"}
+            <UIButton
+              type="submit"
+              disabled={busy}
+              style={{ width: "100%", justifyContent: "center", marginTop: "0.25rem" }}
+            >
+              {busy ? "Signing in..." : "Access admin console"}
             </UIButton>
           </form>
-        </UICardBody>
-      </UICard>
+
+          <div className="auth-or-divider">
+            <span className="auth-or-text">or</span>
+          </div>
+
+          <Link href="/login" className="auth-switch-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            Sign in as Agent instead
+          </Link>
+
+          <p className="auth-back">
+            Back to{" "}
+            <a href="/">Letting Partners website</a>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

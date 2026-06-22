@@ -171,6 +171,10 @@ export default function SiteHeader() {
               <LPIcon name="phone" size={17} />
               07782 273674
             </a>
+            <Link href="/login" className="lp-btn lp-btn--outline lp-btn--sm">
+              <LPIcon name="key" size={15} />
+              Sign In
+            </Link>
             <Link href="/contact" className="lp-btn lp-btn--gold lp-btn--sm">
               Speak to Us
             </Link>
