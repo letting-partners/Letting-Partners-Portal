@@ -1,41 +1,41 @@
-import { NextRequest } from "next/server";
-import {
-  validateWebsiteApiRequest,
-  websiteJsonResponse,
-  websiteOptionsResponse,
-} from "@/lib/website-cors";
-import { getPublicWebsiteProperty } from "@/lib/website-properties";
+import { NextResponse, type NextRequest } from "next/server";
+import { jsonError, verifyWebsiteApiKey, withCors } from "@/lib/api-auth";
+import { getWebsiteProperty } from "@/services/website";
+
+/**
+ * GET /api/website/properties/:id
+ *
+ * `id` is the public slug, and the internal uuid is also accepted so older
+ * links keep working.
+ */
 
 export const dynamic = "force-dynamic";
 
-export function OPTIONS(request: NextRequest) {
-  return websiteOptionsResponse(request);
-}
-
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const unauthorized = validateWebsiteApiRequest(request);
-  if (unauthorized) return unauthorized;
+  const unauthorized = verifyWebsiteApiKey(request);
+  if (unauthorized) return withCors(unauthorized, request.headers.get("origin"));
+
+  const { id } = await params;
 
   try {
-    const property = await getPublicWebsiteProperty(params.id);
+    const property = await getWebsiteProperty(id);
+
     if (!property) {
-      return websiteJsonResponse(
-        request,
-        { ok: false, error: "Property not found." },
-        { status: 404 },
-      );
+      return withCors(jsonError("Property not found.", 404), request.headers.get("origin"));
     }
 
-    return websiteJsonResponse(request, { ok: true, property });
+    const response = NextResponse.json({ ok: true, property });
+    response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+    return withCors(response, request.headers.get("origin"));
   } catch (error) {
-    console.error("Public website property detail API error:", error);
-    return websiteJsonResponse(
-      request,
-      { ok: false, error: "Unable to load property." },
-      { status: 500 },
-    );
+    console.error("Website property detail endpoint failed:", error);
+    return withCors(jsonError("Unable to load property.", 500), request.headers.get("origin"));
   }
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return withCors(new NextResponse(null, { status: 204 }), request.headers.get("origin"));
 }

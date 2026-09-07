@@ -1,0 +1,266 @@
+/* Reset and element defaults. Everything else lives in components.css. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--surface-app);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure {
+  margin: 0;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--text-strong);
+  line-height: 1.25;
+  letter-spacing: -0.011em;
+  font-weight: 650;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+h2 {
+  font-size: 1.125rem;
+}
+h3 {
+  font-size: 1rem;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* A single, always-visible focus treatment. Never remove it. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+:where(button, a, input, select, textarea):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Scrollbars that do not fight the dark theme. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Visible only to screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 200;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.skip-link:focus {
+  left: 8px;
+  top: 8px;
+}
+
+/* ---------------------------------------------------------------------------
+   OVERFLOW CONTAINMENT
+
+   Flex and grid children default to min-width:auto, which means a long word,
+   URL or email refuses to shrink and pushes its container wider than the
+   viewport. These rules make shrinking the default and let long strings break,
+   so no screen can be knocked out of shape by its content.
+--------------------------------------------------------------------------- */
+
+.app-shell,
+.app-main,
+.page {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Every flex/grid child may shrink below its content width. */
+.stack > *,
+.row > *,
+.grid-2 > *,
+.grid-sidebar > *,
+.form-grid > *,
+.card,
+.card-body,
+.field,
+.person > *,
+.chat-thread > * {
+  min-width: 0;
+}
+
+/* Long unbroken strings - emails, URLs, references - wrap instead of spilling. */
+p,
+dd,
+li,
+td,
+.field-hint,
+.field-error,
+.table-secondary,
+.timeline-summary,
+.stat-meta,
+.page-subtitle,
+.empty-state p {
+  overflow-wrap: anywhere;
+}
+
+/* Headings break too, but only where a word genuinely cannot fit. */
+h1,
+h2,
+h3,
+h4,
+.card-title,
+.stat-value {
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+/* A definition list value is the most common home for a long email address. */
+.definition-list dd {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* Tables scroll inside their own container rather than widening the page. */
+.table-wrap {
+  max-width: 100%;
+}
+
+/* Cells that hold free text get a sensible ceiling before they wrap. */
+.table td {
+  max-width: 340px;
+  overflow-wrap: anywhere;
+}
+
+/* ...but a cell explicitly marked as a single line stays on one line. */
+.table td.numeric,
+.table th.numeric,
+.table-actions {
+  overflow-wrap: normal;
+  max-width: none;
+}
+
+.truncate {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* The page itself must never scroll sideways. */
+body {
+  overflow-x: hidden;
+}

@@ -1,0 +1,182 @@
+/*
+ * Design tokens.
+ *
+ * The palette is inherited from the public Letting Partners website (navy,
+ * gold, cream) but re-tuned for a dense, long-session internal tool: lower
+ * chroma surfaces, tighter radii, and a proper dark mode.
+ *
+ * Light is defined on bare :root. Dark redefines only the tokens, under both
+ * the media query (system preference) and [data-theme="dark"] (explicit
+ * choice), so the toggle wins in both directions.
+ */
+
+:root {
+  /* Brand constants - identical in both themes. */
+  --lp-navy: #071826;
+  --lp-navy-2: #0d2434;
+  --lp-gold: #c69a4b;
+  --lp-gold-2: #e2bf77;
+  --lp-teal: #4e8f87;
+
+  /* Surfaces */
+  --surface-app: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #fafbfc;
+  --surface-3: #f0f2f5;
+  --surface-inset: #f6f7f9;
+  --surface-inverse: var(--lp-navy);
+
+  /* Text */
+  --text: #16232e;
+  --text-strong: #071826;
+  --text-muted: #5c6b7a;
+  --text-subtle: #8593a1;
+  --text-on-accent: #071826;
+  --text-inverse: #f2f5f8;
+
+  /* Lines */
+  --border: #e2e6ea;
+  --border-strong: #cbd3da;
+  --border-focus: var(--lp-gold);
+
+  /* Accent */
+  --accent: var(--lp-gold);
+  --accent-hover: #b3872f;
+  --accent-soft: rgba(198, 154, 75, 0.14);
+  --accent-contrast: var(--lp-navy);
+
+  /* Semantic status colours, used by badges and pipeline chips */
+  --status-neutral-bg: #eef1f4;
+  --status-neutral-fg: #4a5a68;
+  --status-positive-bg: #e3f5ea;
+  --status-positive-fg: #1b6b3f;
+  --status-warning-bg: #fdf1dc;
+  --status-warning-fg: #8a5b00;
+  --status-danger-bg: #fdeaea;
+  --status-danger-fg: #a32020;
+  --status-info-bg: #e6f0fb;
+  --status-info-fg: #1d5da8;
+  --status-accent-bg: #efe9fa;
+  --status-accent-fg: #5b3fa8;
+  --status-strong-bg: #e6f2f1;
+  --status-strong-fg: #1f6058;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(7, 24, 38, 0.06);
+  --shadow: 0 2px 8px rgba(7, 24, 38, 0.08);
+  --shadow-lg: 0 12px 32px rgba(7, 24, 38, 0.14);
+  --shadow-modal: 0 24px 64px rgba(7, 24, 38, 0.24);
+
+  /* Geometry */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  --sidebar-width: 244px;
+  --sidebar-width-collapsed: 64px;
+  --topbar-height: 56px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration: 160ms;
+
+  --font: var(--lp-font), Inter, ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-app: #0b1620;
+    --surface: #121e29;
+    --surface-2: #16242f;
+    --surface-3: #1c2c38;
+    --surface-inset: #0e1a24;
+    --surface-inverse: #061420;
+
+    --text: #e6edf3;
+    --text-strong: #f5f9fc;
+    --text-muted: #9fb0be;
+    --text-subtle: #74889a;
+    --text-inverse: #0b1620;
+
+    --border: #24363f;
+    --border-strong: #354a56;
+
+    --accent: var(--lp-gold-2);
+    --accent-hover: #efd096;
+    --accent-soft: rgba(226, 191, 119, 0.16);
+    --accent-contrast: #071826;
+
+    --status-neutral-bg: #1e2d38;
+    --status-neutral-fg: #a8b8c5;
+    --status-positive-bg: #12301f;
+    --status-positive-fg: #6fd39a;
+    --status-warning-bg: #3a2c10;
+    --status-warning-fg: #f0c069;
+    --status-danger-bg: #3a1a1a;
+    --status-danger-fg: #f28b8b;
+    --status-info-bg: #14283f;
+    --status-info-fg: #79b3f0;
+    --status-accent-bg: #241d3d;
+    --status-accent-fg: #b49af0;
+    --status-strong-bg: #12302d;
+    --status-strong-fg: #6ec8bd;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+    --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.65);
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface-app: #0b1620;
+  --surface: #121e29;
+  --surface-2: #16242f;
+  --surface-3: #1c2c38;
+  --surface-inset: #0e1a24;
+  --surface-inverse: #061420;
+
+  --text: #e6edf3;
+  --text-strong: #f5f9fc;
+  --text-muted: #9fb0be;
+  --text-subtle: #74889a;
+  --text-inverse: #0b1620;
+
+  --border: #24363f;
+  --border-strong: #354a56;
+
+  --accent: var(--lp-gold-2);
+  --accent-hover: #efd096;
+  --accent-soft: rgba(226, 191, 119, 0.16);
+  --accent-contrast: #071826;
+
+  --status-neutral-bg: #1e2d38;
+  --status-neutral-fg: #a8b8c5;
+  --status-positive-bg: #12301f;
+  --status-positive-fg: #6fd39a;
+  --status-warning-bg: #3a2c10;
+  --status-warning-fg: #f0c069;
+  --status-danger-bg: #3a1a1a;
+  --status-danger-fg: #f28b8b;
+  --status-info-bg: #14283f;
+  --status-info-fg: #79b3f0;
+  --status-accent-bg: #241d3d;
+  --status-accent-fg: #b49af0;
+  --status-strong-bg: #12302d;
+  --status-strong-fg: #6ec8bd;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.65);
+
+  color-scheme: dark;
+}

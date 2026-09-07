@@ -1,84 +1,75 @@
 import { z } from "zod";
 
-const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
-const optionalString = z.preprocess(emptyToUndefined, z.string().optional());
-const optionalPositiveInt = z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional());
+/**
+ * Environment access is validated once, here. Nothing else in the portal reads
+ * `process.env` directly, so a missing variable fails loudly at boot rather
+ * than as a confusing runtime error later.
+ *
+ * Client-safe values must be prefixed NEXT_PUBLIC_ and listed in `publicEnv`.
+ */
 
-const baseEnvSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+const serverSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  APP_URL: z.string().url("APP_URL must be a valid URL").default("http://localhost:3002"),
-  AUTH_SESSION_SECRET: z.string().min(32, "AUTH_SESSION_SECRET must be at least 32 chars"),
-  AUTH_COOKIE_NAME: z.string().min(1).default("letting_partners_session"),
-  AUTH_SESSION_TTL_HOURS: z.coerce.number().int().positive().max(168).default(12),
-  OTP_EMAIL_FROM: z.string().email("OTP_EMAIL_FROM must be a valid email"),
-  OTP_TTL_MINUTES: z.coerce.number().int().positive().max(60).default(10),
-  OTP_MAX_SENDS_PER_WINDOW: z.coerce.number().int().positive().max(20).default(5),
-  OTP_SEND_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(10),
-  OTP_MAX_VERIFY_ATTEMPTS_PER_CODE: z.coerce.number().int().positive().max(10).default(5),
-  OTP_MAX_VERIFY_ATTEMPTS_PER_WINDOW: z.coerce.number().int().positive().max(30).default(10),
-  OTP_VERIFY_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(10),
-  ALLOW_ADMIN_PASSIVE_REVERT: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
+
+  /** 32+ random bytes, used to sign session tokens and hash OTP codes. */
+  AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters"),
+  SESSION_TTL_HOURS: z.coerce.number().int().positive().default(12),
+  SESSION_REMEMBER_TTL_DAYS: z.coerce.number().int().positive().default(30),
+
+  RESEND_API_KEY: z.string().optional(),
+  AUTH_FROM_EMAIL: z.string().default("Letting Partners <no-reply@lettingpartners.co.uk>"),
+
+  /** Shared secret the public website sends as x-website-api-key. */
+  WEBSITE_API_KEY: z.string().min(16, "WEBSITE_API_KEY must be at least 16 characters"),
+
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
+
+  /** Optional vision provider for automatic image alt text. */
+  ALT_TEXT_PROVIDER: z.enum(["none", "anthropic"]).default("none"),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  ALT_TEXT_MODEL: z.string().default("claude-sonnet-5"),
+
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
-const consoleEmailSchema = baseEnvSchema.extend({
-  EMAIL_PROVIDER: z.literal("console").default("console"),
-  RESEND_API_KEY: optionalString,
-  SMTP_HOST: optionalString,
-  SMTP_PORT: optionalPositiveInt,
-  SMTP_USER: optionalString,
-  SMTP_PASSWORD: optionalString,
+const publicSchema = z.object({
+  NEXT_PUBLIC_SITE_URL: z.string().url().default("https://www.lettingpartners.co.uk"),
+  NEXT_PUBLIC_PORTAL_URL: z.string().url().default("https://portal.lettingpartners.co.uk"),
+  NEXT_PUBLIC_COMPANY_NAME: z.string().default("Letting Partners"),
 });
 
-const resendEmailSchema = baseEnvSchema.extend({
-  EMAIL_PROVIDER: z.literal("resend"),
-  RESEND_API_KEY: z.string().min(1, "RESEND_API_KEY is required when EMAIL_PROVIDER=resend"),
-  SMTP_HOST: optionalString,
-  SMTP_PORT: optionalPositiveInt,
-  SMTP_USER: optionalString,
-  SMTP_PASSWORD: optionalString,
+export type ServerEnv = z.infer<typeof serverSchema>;
+export type PublicEnv = z.infer<typeof publicSchema>;
+
+let cachedServerEnv: ServerEnv | null = null;
+
+/** Server-only. Throws with a readable list of every missing variable. */
+export function serverEnv(): ServerEnv {
+  if (cachedServerEnv) return cachedServerEnv;
+
+  const parsed = serverSchema.safeParse(process.env);
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
+      .join("\n");
+    throw new Error(
+      `Invalid portal environment configuration:\n${issues}\n\nSee .env.example for the full list.`,
+    );
+  }
+
+  cachedServerEnv = parsed.data;
+  return cachedServerEnv;
+}
+
+/**
+ * Read literally so the Next.js compiler can inline these into the client
+ * bundle. Do not refactor into a dynamic lookup.
+ */
+export const publicEnv: PublicEnv = publicSchema.parse({
+  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+  NEXT_PUBLIC_PORTAL_URL: process.env.NEXT_PUBLIC_PORTAL_URL,
+  NEXT_PUBLIC_COMPANY_NAME: process.env.NEXT_PUBLIC_COMPANY_NAME,
 });
 
-const smtpEmailSchema = baseEnvSchema.extend({
-  EMAIL_PROVIDER: z.literal("smtp"),
-  RESEND_API_KEY: optionalString,
-  SMTP_HOST: z.string().min(1, "SMTP_HOST is required when EMAIL_PROVIDER=smtp"),
-  SMTP_PORT: z.coerce.number().int().positive(),
-  SMTP_USER: z.string().min(1, "SMTP_USER is required when EMAIL_PROVIDER=smtp"),
-  SMTP_PASSWORD: z.string().min(1, "SMTP_PASSWORD is required when EMAIL_PROVIDER=smtp"),
-});
-
-const envSchema = z.discriminatedUnion("EMAIL_PROVIDER", [
-  consoleEmailSchema,
-  resendEmailSchema,
-  smtpEmailSchema,
-]);
-
-export const env = envSchema.parse({
-  NODE_ENV: process.env.NODE_ENV,
-  DATABASE_URL: process.env.DATABASE_URL,
-  APP_URL: process.env.APP_URL,
-  AUTH_SESSION_SECRET:
-    process.env.AUTH_SESSION_SECRET ??
-    process.env.SESSION_SECRET ??
-    process.env.JWT_SECRET,
-  AUTH_COOKIE_NAME: process.env.AUTH_COOKIE_NAME,
-  AUTH_SESSION_TTL_HOURS: process.env.AUTH_SESSION_TTL_HOURS,
-  EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? "console",
-  OTP_EMAIL_FROM: process.env.OTP_EMAIL_FROM,
-  OTP_TTL_MINUTES: process.env.OTP_TTL_MINUTES,
-  OTP_MAX_SENDS_PER_WINDOW: process.env.OTP_MAX_SENDS_PER_WINDOW,
-  OTP_SEND_WINDOW_MINUTES: process.env.OTP_SEND_WINDOW_MINUTES,
-  OTP_MAX_VERIFY_ATTEMPTS_PER_CODE: process.env.OTP_MAX_VERIFY_ATTEMPTS_PER_CODE,
-  OTP_MAX_VERIFY_ATTEMPTS_PER_WINDOW: process.env.OTP_MAX_VERIFY_ATTEMPTS_PER_WINDOW,
-  OTP_VERIFY_WINDOW_MINUTES: process.env.OTP_VERIFY_WINDOW_MINUTES,
-  ALLOW_ADMIN_PASSIVE_REVERT: process.env.ALLOW_ADMIN_PASSIVE_REVERT,
-  RESEND_API_KEY: process.env.RESEND_API_KEY,
-  SMTP_HOST: process.env.SMTP_HOST,
-  SMTP_PORT: process.env.SMTP_PORT,
-  SMTP_USER: process.env.SMTP_USER,
-  SMTP_PASSWORD: process.env.SMTP_PASSWORD,
-});
+export const isProduction = process.env.NODE_ENV === "production";
+export const isDevelopment = process.env.NODE_ENV === "development";

@@ -1,51 +1,46 @@
 {
-  "name": "letting-partners",
+  "name": "letting-partners-portal",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3002",
-    "postinstall": "prisma generate",
+    "dev": "next dev -p 3003",
     "build": "next build",
-    "build:with-migrate": "npm run prisma:migrate:deploy && next build",
-    "start": "next start -p 3002",
-    "lint": "next lint",
-    "test": "node --import tsx --test tests/index.test.ts",
-    "test:unit": "node --import tsx --test tests/core-rules.unit.test.ts tests/landlord-passive-policy.test.ts",
-    "test:integration:pg": "node --import tsx --test tests/postgres-landlord-constraints.integration.test.ts tests/otp-flow.integration.test.ts",
+    "start": "next start -p 3003",
+    "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:migrate:deploy": "node scripts/prisma-migrate-build.mjs",
-    "prisma:seed": "prisma db seed",
-    "db:clear-sales": "node --import tsx scripts/clear-sales.ts"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx scripts/seed.ts",
+    "test": "node scripts/run-tests.mjs",
+    "db:verify": "node scripts/verify-constraints.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
-    "lucide-react": "^1.20.0",
-    "next": "^14.2.0",
-    "nodemailer": "^8.0.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "sip.js": "^0.21.2",
-    "zod": "^3.23.8"
+    "@vercel/blob": "^2.8.0",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.41.0",
+    "next": "16.2.2",
+    "postgres": "^3.4.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "resend": "^6.26.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.0",
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20.16.11",
-    "@types/react": "^18.3.11",
-    "@types/react-dom": "^18.3.1",
-    "eslint": "^8.57.1",
-    "eslint-config-next": "^14.2.0",
-    "prisma": "^5.22.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.2",
     "tailwindcss": "^4",
-    "tsx": "^4.20.5",
+    "tsx": "^4.23.13",
     "typescript": "^5"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
-  "engines": {
-    "node": "20.x"
   }
 }

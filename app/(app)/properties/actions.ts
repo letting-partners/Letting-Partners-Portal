@@ -1,0 +1,193 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { ForbiddenError, requireAccess } from "@/services/permissions";
+import {
+  addRoom,
+  archiveProperty,
+  publishProperty,
+  PropertyError,
+  removeRoom,
+  savePublicDetails,
+  unpublishProperty,
+  updateRoom,
+} from "@/services/properties";
+
+/** Property actions available from the list rows and the detail page. */
+
+export type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
+
+function fail(error: unknown): { ok: false; error: string } {
+  if (error instanceof PropertyError) return { ok: false, error: error.message };
+  if (error instanceof ForbiddenError) {
+    return { ok: false, error: "You do not have permission to do that." };
+  }
+  if (error instanceof z.ZodError) {
+    return { ok: false, error: error.issues[0]?.message ?? "Check the details and try again." };
+  }
+  console.error("Property action failed:", error);
+  return { ok: false, error: "Something went wrong. Please try again." };
+}
+
+function revalidateProperty(propertyId: string) {
+  revalidatePath("/properties");
+  revalidatePath(`/properties/${propertyId}`);
+}
+
+export async function publishAction(propertyId: string): Promise<ActionResult<{ slug: string }>> {
+  try {
+    const context = await requireAccess();
+    const result = await publishProperty(propertyId, context);
+    revalidateProperty(propertyId);
+    return { ok: true, data: result };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function unpublishAction(
+  propertyId: string,
+  reason?: string | null,
+): Promise<ActionResult> {
+  try {
+    const context = await requireAccess();
+    await unpublishProperty(propertyId, reason ?? null, context);
+    revalidateProperty(propertyId);
+    return { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function archiveAction(
+  propertyId: string,
+  reason?: string | null,
+): Promise<ActionResult> {
+  try {
+    const context = await requireAccess();
+    await archiveProperty(propertyId, reason ?? null, context);
+    revalidatePath("/properties");
+    return { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+const publicDetailsSchema = z.object({
+  propertyId: z.string().uuid(),
+  title: z.string().trim().min(1, "Enter a property title.").max(200),
+  description: z.string().trim().min(1, "Enter a description.").max(8000),
+  metaTitle: z.string().trim().max(200).optional().nullable(),
+  metaDescription: z.string().trim().max(320).optional().nullable(),
+  imageAssetIds: z.array(z.string().uuid()).optional(),
+  coverAssetId: z.string().uuid().optional().nullable(),
+});
+
+export async function savePublicDetailsAction(input: {
+  propertyId: string;
+  title: string;
+  description: string;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  imageAssetIds?: string[];
+  coverAssetId?: string | null;
+}): Promise<ActionResult<{ listingStatus: string }>> {
+  try {
+    const parsed = publicDetailsSchema.parse(input);
+    const context = await requireAccess();
+
+    const result = await savePublicDetails(
+      parsed.propertyId,
+      {
+        title: parsed.title,
+        description: parsed.description,
+        metaTitle: parsed.metaTitle ?? null,
+        metaDescription: parsed.metaDescription ?? null,
+        imageAssetIds: parsed.imageAssetIds,
+        coverAssetId: parsed.coverAssetId ?? null,
+      },
+      context,
+    );
+
+    revalidateProperty(parsed.propertyId);
+    return { ok: true, data: result };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/* ----------------------------------------------------------------- rooms */
+
+const roomSchema = z.object({
+  propertyId: z.string().uuid(),
+  name: z.string().trim().min(1, "Enter a room name."),
+  availabilityDate: z.string().optional().nullable(),
+  rentFrequency: z.enum(["MONTHLY", "WEEKLY"]),
+  rentPence: z.number().int().positive("Enter a rent greater than zero."),
+  depositPence: z.number().int().nonnegative().optional().nullable(),
+  commissionType: z.enum(["PERCENTAGE", "FIXED"]).optional().nullable(),
+  commissionValue: z.number().int().nonnegative().optional().nullable(),
+});
+
+export async function addRoomAction(input: z.input<typeof roomSchema>): Promise<ActionResult> {
+  try {
+    const parsed = roomSchema.parse(input);
+    const context = await requireAccess();
+
+    await addRoom(
+      parsed.propertyId,
+      {
+        name: parsed.name,
+        availabilityDate: parsed.availabilityDate ?? null,
+        rentFrequency: parsed.rentFrequency,
+        rentPence: parsed.rentPence,
+        depositPence: parsed.depositPence ?? null,
+        commissionType: parsed.commissionType ?? null,
+        commissionValue: parsed.commissionValue ?? null,
+      },
+      context,
+    );
+
+    revalidateProperty(parsed.propertyId);
+    return { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function updateRoomAction(input: {
+  roomId: string;
+  propertyId: string;
+  name?: string;
+  availabilityDate?: string | null;
+  rentFrequency?: "MONTHLY" | "WEEKLY";
+  rentPence?: number;
+  depositPence?: number | null;
+  commissionType?: "PERCENTAGE" | "FIXED" | null;
+  commissionValue?: number | null;
+  status?: "AVAILABLE" | "UNAVAILABLE";
+}): Promise<ActionResult> {
+  try {
+    const context = await requireAccess();
+    await updateRoom(input.roomId, input, context);
+    revalidateProperty(input.propertyId);
+    return { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function removeRoomAction(
+  roomId: string,
+  propertyId: string,
+): Promise<ActionResult> {
+  try {
+    const context = await requireAccess();
+    await removeRoom(roomId, context);
+    revalidateProperty(propertyId);
+    return { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}

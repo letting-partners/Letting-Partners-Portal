@@ -1,7 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { RootShell } from "@/components/root-shell";
-import "./portal-globals.css";
+import { cookies } from "next/headers";
+import { publicEnv } from "@/lib/env";
+import { isThemePreference, themeAttribute, THEME_COOKIE } from "@/lib/theme";
+import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
 const inter = Inter({
@@ -11,35 +13,39 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.lettingpartners.co.uk"),
-  title: "Letting Partners | UK Property Letting & Management",
-  description:
-    "Premium property letting, management, tenant support, legal coordination, maintenance, mortgage consultancy, and development support across London and Birmingham.",
-  keywords: [
-    "letting agents London",
-    "property management London",
-    "landlord services Birmingham",
-    "tenant services London",
-    "UK property letting",
-  ],
-  icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+  title: {
+    default: `${publicEnv.NEXT_PUBLIC_COMPANY_NAME} Portal`,
+    template: `%s | ${publicEnv.NEXT_PUBLIC_COMPANY_NAME} Portal`,
   },
-  openGraph: {
-    type: "website",
-    locale: "en_GB",
-    siteName: "Letting Partners",
-    title: "Letting Partners | UK Property Letting & Management",
-    description:
-      "Professional letting, management, tenant, legal, maintenance, mortgage, and development support across London and Birmingham.",
-  },
+  description: "Internal lettings CRM and property management portal.",
+  icons: { icon: [{ url: "/favicon.svg", type: "image/svg+xml" }] },
+  // The portal is staff-only; it must never appear in a search index.
+  robots: { index: false, follow: false, nocache: true },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f4f5f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1620" },
+  ],
+};
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Reading the preference on the server means the correct theme is in the
+  // first paint - no flash, and no blocking inline script.
+  const cookieStore = await cookies();
+  const stored = cookieStore.get(THEME_COOKIE)?.value;
+  const preference = isThemePreference(stored) ? stored : "SYSTEM";
+
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} data-theme={themeAttribute(preference)}>
       <body>
-        <RootShell>{children}</RootShell>
+        <a className="skip-link" href="#main-content">
+          Skip to content
+        </a>
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );
