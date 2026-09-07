@@ -38,6 +38,27 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+/*
+ * The S3 API endpoint is not a public address - every request to it must be
+ * signature-signed, so a browser fetch gets a 400. It is easy to paste into
+ * the wrong variable and the failure looks unrelated, so name it here.
+ */
+if (publicBase.includes(".r2.cloudflarestorage.com")) {
+  console.error(`
+S3_PUBLIC_BASE_URL is set to the S3 API endpoint, which is private. It needs
+the bucket's public address instead:
+
+  Cloudflare -> R2 -> ${bucket} -> Settings
+    Public access -> enable the public development URL, or
+    Custom Domains -> connect one
+
+  Then set S3_PUBLIC_BASE_URL to that address, for example
+    https://pub-<hash>.r2.dev
+    https://images.lettingpartners.co.uk
+`);
+  process.exit(1);
+}
+
 const endpoint = endpointRaw.replace(new RegExp(`/${bucket}/?$`), "");
 const client = new S3Client({
   region,
