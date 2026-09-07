@@ -50,9 +50,55 @@ if (target) {
   }
 }
 
+/* ------------------------------------------------- 2. did it even try? */
+
+/*
+ * A code row is written before the email is sent, so its absence proves the
+ * send was never reached. The rate-limit keys record which addresses were
+ * actually submitted - including ones with no account, which leave no other
+ * trace. Together these separate "the mail failed" from "nobody asked".
+ */
+const codes = await sql`
+  select email, created_at, consumed_at
+  from otp_codes order by created_at desc limit 5
+`;
+
+const attempts = await sql`
+  select key, count, window_started_at from rate_limits
+  where key like 'otp:req:email:%' order by window_started_at desc limit 10
+`;
+
+console.log(`
+Codes generated (${codes.length} most recent):`);
+if (codes.length === 0) {
+  console.log("  none - no code has ever been generated, so none was ever sent");
+} else {
+  for (const code of codes) {
+    console.log(
+      `  ${code.created_at.toISOString()}  ${code.email}` +
+        `  ${code.consumed_at ? "used" : "unused"}`,
+    );
+  }
+}
+
+console.log(`
+Addresses submitted to the login form (${attempts.length}):`);
+if (attempts.length === 0) {
+  console.log("  none");
+} else {
+  for (const attempt of attempts) {
+    const address = attempt.key.replace("otp:req:email:", "");
+    const known = accounts.some((a) => a.email.toLowerCase() === address);
+    console.log(
+      `  ${attempt.window_started_at.toISOString()}  ${address}` +
+        `  x${attempt.count}${known ? "" : "  <- no account, nothing sent"}`,
+    );
+  }
+}
+
 await sql.end();
 
-/* ------------------------------------------------------ 2. the provider */
+/* ------------------------------------------------------ 3. the provider */
 
 if (!key) {
   console.log("\nRESEND_API_KEY is not set: codes print to the server log instead.\n");
