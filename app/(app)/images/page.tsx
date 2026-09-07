@@ -44,8 +44,8 @@ export default async function ImagesPage({
       {!storageReady && (
         <div className="alert alert--warning" style={{ marginBottom: 16 }}>
           <span>
-            File storage is not configured yet. Add <code>BLOB_READ_WRITE_TOKEN</code> to the
-            portal environment to enable uploads.
+            File storage is not configured yet. Add the <code>S3_*</code> variables (endpoint,
+            bucket, key pair and public base URL) to the portal environment to enable uploads.
           </span>
         </div>
       )}

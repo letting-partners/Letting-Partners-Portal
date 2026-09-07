@@ -7,7 +7,7 @@ import { formatDateTime } from "@/lib/dates";
 import { formatRate } from "@/lib/money";
 import { publicEnv } from "@/lib/env";
 import { getExchangeRateDetail, getSetting, SETTING_KEYS } from "@/services/settings";
-import { isStorageConfigured } from "@/services/storage";
+import { isStorageConfigured, storageDriver } from "@/services/storage";
 import CompanySettings from "./CompanySettings";
 
 export const metadata: Metadata = { title: "System settings" };
@@ -76,7 +76,7 @@ export default async function SettingsPage() {
                 {
                   term: "File storage",
                   value: isStorageConfigured() ? (
-                    <span className="badge badge--positive">Configured</span>
+                    <span className="badge badge--positive">{storageDriver()}</span>
                   ) : (
                     <span className="badge badge--warning">
                       Not configured - uploads are disabled

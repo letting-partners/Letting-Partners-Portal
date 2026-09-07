@@ -22,7 +22,7 @@ website API described below.
 | Database    | PostgreSQL 14+                                |
 | ORM         | Drizzle ORM + drizzle-kit migrations          |
 | Auth        | Email OTP (Resend), database-backed sessions  |
-| Storage     | Vercel Blob                                   |
+| Storage     | S3-compatible (Cloudflare R2), Vercel Blob fallback |
 | Styling     | CSS design tokens + Tailwind utilities        |
 | Tests       | Node test runner (`node --test`)              |
 

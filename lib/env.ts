@@ -22,6 +22,21 @@ const serverSchema = z.object({
   /** Shared secret the public website sends as x-website-api-key. */
   WEBSITE_API_KEY: z.string().min(16, "WEBSITE_API_KEY must be at least 16 characters"),
 
+  /*
+   * Object storage. Any S3-compatible store works; Cloudflare R2 is what this
+   * deployment uses. All five must be set for the S3 driver to switch on -
+   * including the public base URL, because credentials alone do not make an
+   * object readable from the internet.
+   */
+  S3_ENDPOINT: z.string().optional(),
+  S3_BUCKET: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_REGION: z.string().default("auto"),
+  /** Custom domain or public development URL for the bucket, no trailing slash. */
+  S3_PUBLIC_BASE_URL: z.string().optional(),
+
+  /** Legacy fallback, used only when no S3 bucket is configured. */
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
 
   /** Optional vision provider for automatic image alt text. */
