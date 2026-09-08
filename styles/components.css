@@ -266,6 +266,21 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* A whole card that is a button - the landlord picker's search results. */
+.card--selectable {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+}
+
+.card--selectable:hover,
+.card--selectable:focus-visible {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+
 .card-header {
   display: flex;
   align-items: center;

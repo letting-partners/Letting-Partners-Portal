@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -24,6 +24,8 @@ import {
   checkDuplicatesAction,
   createLandlordAction,
   createPropertyAction,
+  searchLandlordsAction,
+  type LandlordMatch,
 } from "./actions";
 
 /**
@@ -35,6 +37,9 @@ import {
  */
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+/** Whether step 1 creates a landlord or picks one already on the system. */
+type LandlordMode = "NEW" | "EXISTING";
 
 const STEPS: { index: Step; label: string }[] = [
   { index: 1, label: "Landlord" },
@@ -184,6 +189,7 @@ export default function PropertyWizard({
 
   const [state, setState] = useState<WizardState>(() => initialState(phone ?? "", display ?? ""));
   const [step, setStep] = useState<Step>(existingLandlord ? 2 : 1);
+  const [landlordMode, setLandlordMode] = useState<LandlordMode>("NEW");
   const [error, setError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<
     { id: string; reference: string; formattedAddress: string; landlordName: string }[]
@@ -265,6 +271,18 @@ export default function PropertyWizard({
   );
 
   /* ------------------------------------------------------------ step 1 */
+
+  /** Adopt an existing landlord and move on - nothing to create. */
+  function pickLandlord(landlord: LandlordMatch) {
+    update({
+      landlordId: landlord.id,
+      landlordName: landlord.name,
+      landlordPhone: landlord.phone,
+    });
+    toast.success(`${landlord.name} selected.`);
+    setStep(2);
+  }
+
 
   function submitLandlord() {
     if (!state.landlordName.trim()) {
@@ -500,7 +518,14 @@ export default function PropertyWizard({
       <div className="card">
         <div className="card-body">
           {step === 1 && (
-            <StepLandlord state={state} update={update} disabled={Boolean(state.landlordId)} />
+            <StepLandlord
+              state={state}
+              update={update}
+              disabled={Boolean(state.landlordId)}
+              mode={landlordMode}
+              onModeChange={setLandlordMode}
+              onPick={pickLandlord}
+            />
           )}
 
           {step === 2 && (
@@ -555,7 +580,7 @@ export default function PropertyWizard({
                 </button>
               )}
 
-              {step === 1 && (
+              {step === 1 && !(landlordMode === "EXISTING" && !state.landlordId) && (
                 <button
                   type="button"
                   className="btn btn--primary"
@@ -634,15 +659,56 @@ type StepProps = {
   update: (patch: Partial<WizardState>) => void;
 };
 
-function StepLandlord({ state, update, disabled }: StepProps & { disabled: boolean }) {
+function StepLandlord({
+  state,
+  update,
+  disabled,
+  mode,
+  onModeChange,
+  onPick,
+}: StepProps & {
+  disabled: boolean;
+  mode: LandlordMode;
+  onModeChange: (mode: LandlordMode) => void;
+  onPick: (landlord: LandlordMatch) => void;
+}) {
   return (
     <div className="stack">
       <div>
-        <h2>Landlord details</h2>
+        <h2>Landlord</h2>
         <p className="muted small" style={{ marginTop: 3 }}>
-          The phone number becomes this landlord&apos;s permanent identity on the system.
+          {mode === "EXISTING"
+            ? "Find the landlord already on the system."
+            : "The phone number becomes this landlord's permanent identity on the system."}
         </p>
       </div>
+
+      {/* Adding a second property for a landlord already on the books is
+          routine; without this the only route was to retype them and trip the
+          duplicate check. */}
+      {!disabled && (
+        <div className="row row--wrap">
+          <button
+            type="button"
+            className={mode === "NEW" ? "btn btn--primary" : "btn btn--secondary"}
+            onClick={() => onModeChange("NEW")}
+          >
+            New landlord
+          </button>
+          <button
+            type="button"
+            className={mode === "EXISTING" ? "btn btn--primary" : "btn btn--secondary"}
+            onClick={() => onModeChange("EXISTING")}
+          >
+            Existing landlord
+          </button>
+        </div>
+      )}
+
+      {mode === "EXISTING" && !disabled && <LandlordPicker onPick={onPick} />}
+
+      {mode === "EXISTING" && !disabled ? null : (
+        <>
 
       {disabled && (
         <div className="alert alert--positive">
@@ -711,7 +777,98 @@ function StepLandlord({ state, update, disabled }: StepProps & { disabled: boole
             <option value="OTHER">Other</option>
           </select>
         </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Type-ahead over the landlords the caller can see. Debounced so a fast typist
+ * does not fire a query per keystroke, and last-response-wins so a slow early
+ * query cannot overwrite the results of a later one.
+ */
+function LandlordPicker({ onPick }: { onPick: (landlord: LandlordMatch) => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<LandlordMatch[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const requestRef = useRef(0);
+
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 2) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+
+    setSearching(true);
+    const ticket = ++requestRef.current;
+
+    const timer = setTimeout(async () => {
+      const result = await searchLandlordsAction(term);
+      if (ticket !== requestRef.current) return;
+
+      setResults(result.ok ? result.data : []);
+      setSearching(false);
+      setSearched(true);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  return (
+    <div className="stack--sm stack">
+      <div className="field">
+        <label className="field-label" htmlFor="landlord-search">
+          Search by name or phone number
+        </label>
+        <input
+          id="landlord-search"
+          className="input"
+          value={query}
+          placeholder="Name or phone"
+          onChange={(event) => setQuery(event.target.value)}
+          autoFocus
+        />
       </div>
+
+      {searching && <p className="muted small">Searching...</p>}
+
+      {!searching && searched && results.length === 0 && (
+        <p className="muted small">
+          No landlord matches that. Check the spelling, or add them as a new landlord.
+        </p>
+      )}
+
+      {results.length > 0 && (
+        <div className="stack--sm stack">
+          {results.map((landlord) => (
+            <button
+              key={landlord.id}
+              type="button"
+              className="card card--selectable"
+              onClick={() => onPick(landlord)}
+            >
+              <div className="card-body row row--between">
+                <span>
+                  <strong>{landlord.name}</strong>
+                  <span className="muted small numeric" style={{ display: "block" }}>
+                    {landlord.phone}
+                  </span>
+                </span>
+                <span className="muted small">
+                  {landlord.propertyCount === 1
+                    ? "1 property"
+                    : `${landlord.propertyCount} properties`}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

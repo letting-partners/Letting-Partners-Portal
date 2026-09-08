@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { genderEnum } from "@/db/schema";
 import { ForbiddenError, requireAccess } from "@/services/permissions";
-import { createLandlord, LandlordError } from "@/services/landlords";
+import { createLandlord, LandlordError, listLandlords } from "@/services/landlords";
 import {
   createProperty,
   findDuplicateCandidates,
@@ -71,6 +71,49 @@ export async function createLandlordAction(input: {
 
     revalidatePath("/landlords");
     return { ok: true, data: { landlordId: landlord.id } };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/* -------------------------------------------------- existing landlords */
+
+export type LandlordMatch = {
+  id: string;
+  name: string;
+  phone: string;
+  propertyCount: number;
+};
+
+/**
+ * Landlords the caller is allowed to see, for the "existing landlord" choice.
+ *
+ * Visibility is the list service's own, so a fronter searching here finds only
+ * their own landlords - the picker cannot become a way to read the whole book.
+ */
+export async function searchLandlordsAction(
+  query: string,
+): Promise<ActionResult<LandlordMatch[]>> {
+  try {
+    const context = await requireAccess();
+    const term = query.trim();
+    if (term.length < 2) return { ok: true, data: [] };
+
+    const result = await listLandlords(context, {
+      search: term,
+      pageSize: 8,
+      sort: "name",
+    });
+
+    return {
+      ok: true,
+      data: result.rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        phone: row.originalPhone,
+        propertyCount: row.propertyCount,
+      })),
+    };
   } catch (error) {
     return fail(error);
   }
