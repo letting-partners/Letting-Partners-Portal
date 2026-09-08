@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -86,6 +86,7 @@ type WizardState = {
   town: string;
   county: string;
   postcode: string;
+  doorNumber: string;
   area: string;
 
   propertyType: "FULL" | "SHARED";
@@ -136,6 +137,7 @@ function initialState(phone: string, display: string): WizardState {
     town: "",
     county: "",
     postcode: "",
+    doorNumber: "",
     area: "",
 
     propertyType: "FULL",
@@ -153,7 +155,7 @@ function initialState(phone: string, display: string): WizardState {
     commissionType: "PERCENTAGE",
     commissionValue: 10_000,
 
-    rooms: [emptyRoom(0)],
+    rooms: [],
 
     addPublicDetailsNow: false,
     title: "",
@@ -222,6 +224,46 @@ export default function PropertyWizard({
 
   const isStudio = state.propertyType === "FULL" && state.category === "STUDIO_FLAT";
 
+  /*
+   * The number of available rooms is the source of truth for how many rooms
+   * are described. Say two of the five bedrooms are free and two room cards
+   * appear, already named, rather than the agent adding them by hand and
+   * risking a count that disagrees with itself.
+   *
+   * Rooms already filled in are kept as they are: only the tail is added or
+   * removed, so correcting three to four does not disturb the first three.
+   */
+  const syncRoomsToAvailability = useCallback((wanted: number, rooms: RoomDraft[]): RoomDraft[] => {
+    if (wanted === rooms.length) return rooms;
+    if (wanted < rooms.length) return rooms.slice(0, wanted);
+    const next = [...rooms];
+    while (next.length < wanted) next.push(emptyRoom(next.length));
+    return next;
+  }, []);
+
+  /** Set the availability count and bring the room cards with it. */
+  const setAvailableRooms = useCallback(
+    (raw: string) => {
+      const digits = raw.replace(/\D/g, "");
+      const wanted = digits === "" ? 0 : Number(digits);
+
+      setState((current) => {
+        const next: WizardState = {
+          ...current,
+          availableRooms: digits,
+          rooms:
+            current.propertyType === "SHARED"
+              ? syncRoomsToAvailability(wanted, current.rooms)
+              : current.rooms,
+        };
+        save(next);
+        return next;
+      });
+      setError(null);
+    },
+    [save, syncRoomsToAvailability],
+  );
+
   /* ------------------------------------------------------------ step 1 */
 
   function submitLandlord() {
@@ -285,6 +327,32 @@ export default function PropertyWizard({
 
   /* ------------------------------------------------------------ step 5 */
 
+  /* ------------------------------------------------------------ step 4 */
+
+  function validateFeaturesStep(): string | null {
+    if (!isStudio) {
+      const total = Number(state.numberOfRooms);
+      const available = Number(state.availableRooms);
+      if (!total || total < 1) return "Enter how many bedrooms the property has.";
+      if (state.availableRooms === "" || Number.isNaN(available)) {
+        return "Enter how many bedrooms are available.";
+      }
+      if (available > total) {
+        return "Available bedrooms cannot be more than the property has.";
+      }
+      if (state.propertyType === "SHARED" && available < 1) {
+        return "A shared property needs at least one available room.";
+      }
+    }
+
+    if (!isValidPostcode(state.postcode)) {
+      return "Enter a valid UK postcode, for example M14 5AB.";
+    }
+    return null;
+  }
+
+  /* ------------------------------------------------------------ step 5 */
+
   function validateRentStep(): string | null {
     if (state.propertyType === "SHARED") {
       if (state.rooms.length === 0) return "A shared property needs at least one room.";
@@ -293,16 +361,6 @@ export default function PropertyWizard({
         if (!room.rentPence) return `Enter the rent for ${room.name || "each room"}.`;
       }
       return null;
-    }
-
-    if (!isStudio) {
-      const total = Number(state.numberOfRooms);
-      const available = Number(state.availableRooms);
-      if (!total || total < 1) return "Enter the number of rooms.";
-      if (state.availableRooms === "" || Number.isNaN(available)) {
-        return "Enter how many rooms are available.";
-      }
-      if (available > total) return "Available rooms cannot be more than the number of rooms.";
     }
 
     if (!state.rentPence) return "Enter the monthly rent.";
@@ -314,6 +372,13 @@ export default function PropertyWizard({
   /* ------------------------------------------------------------ submit */
 
   function submitProperty() {
+    const featuresError = validateFeaturesStep();
+    if (featuresError) {
+      setError(featuresError);
+      setStep(4);
+      return;
+    }
+
     const rentError = validateRentStep();
     if (rentError) {
       setError(rentError);
@@ -344,15 +409,14 @@ export default function PropertyWizard({
         town: state.town || null,
         county: state.county || null,
         postcode: state.postcode,
+        doorNumber: state.doorNumber || null,
         area: state.area || state.town || null,
 
         features: state.features as Record<string, boolean | null>,
         livingRoom: isStudio ? null : state.livingRoom,
 
-        numberOfRooms:
-          state.propertyType === "FULL" && !isStudio ? Number(state.numberOfRooms) : null,
-        availableRooms:
-          state.propertyType === "FULL" && !isStudio ? Number(state.availableRooms) : null,
+        numberOfRooms: isStudio || !state.numberOfRooms ? null : Number(state.numberOfRooms),
+        availableRooms: isStudio || state.availableRooms === "" ? null : Number(state.availableRooms),
         bathrooms: state.bathrooms ? Number(state.bathrooms) : null,
         availabilityDate:
           state.propertyType === "FULL" ? state.availabilityDate || null : null,
@@ -396,11 +460,11 @@ export default function PropertyWizard({
 
   /* -------------------------------------------------------------- view */
 
-  const canContinue = useMemo(() => {
+  const canContinue = (() => {
     if (step === 1) return Boolean(state.landlordName.trim() && state.landlordPhone.trim());
     if (step === 2) return Boolean(state.addressLine1.trim() && state.postcode.trim());
     return true;
-  }, [step, state]);
+  })();
 
   return (
     <div className="stack">
@@ -454,8 +518,15 @@ export default function PropertyWizard({
           )}
 
           {step === 3 && <StepType state={state} update={update} />}
-          {step === 4 && <StepFeatures state={state} update={update} isStudio={isStudio} />}
-          {step === 5 && <StepRent state={state} update={update} isStudio={isStudio} />}
+          {step === 4 && (
+            <StepFeatures
+              state={state}
+              update={update}
+              isStudio={isStudio}
+              setAvailableRooms={setAvailableRooms}
+            />
+          )}
+          {step === 5 && <StepRent state={state} update={update} />}
           {step === 6 && <StepPublicDetails state={state} update={update} />}
           {step === 7 && <StepReview state={state} isStudio={isStudio} />}
         </div>
@@ -515,12 +586,18 @@ export default function PropertyWizard({
                   type="button"
                   className="btn btn--primary"
                   onClick={() => {
-                    if (step === 5) {
-                      const rentError = validateRentStep();
-                      if (rentError) {
-                        setError(rentError);
-                        return;
-                      }
+                    // Say why rather than disabling: a dead button leaves the
+                    // agent hunting for the field that is wrong.
+                    const stepError =
+                      step === 4
+                        ? validateFeaturesStep()
+                        : step === 5
+                          ? validateRentStep()
+                          : null;
+
+                    if (stepError) {
+                      setError(stepError);
+                      return;
                     }
                     setStep((current) => (current + 1) as Step);
                   }}
@@ -845,7 +922,16 @@ function StepType({ state, update }: StepProps) {
 
 /* ------------------------------------------------------------ step four */
 
-function StepFeatures({ state, update, isStudio }: StepProps & { isStudio: boolean }) {
+function StepFeatures({
+  state,
+  update,
+  isStudio,
+  setAvailableRooms,
+}: StepProps & { isStudio: boolean; setAvailableRooms: (value: string) => void }) {
+  const total = state.numberOfRooms === "" ? null : Number(state.numberOfRooms);
+  const available = state.availableRooms === "" ? null : Number(state.availableRooms);
+  const tooMany = total !== null && available !== null && available > total;
+
   return (
     <div className="stack">
       <div>
@@ -855,7 +941,77 @@ function StepFeatures({ state, update, isStudio }: StepProps & { isStudio: boole
         </p>
       </div>
 
+      {!isStudio && (
+        <div className="stack--sm stack">
+          <h3 className="section-heading">Bedrooms</h3>
+
+          <div className="form-grid">
+            <div className="field">
+              <label className="field-label" htmlFor="rooms-total">
+                How many bedrooms does it have?<span className="required">*</span>
+              </label>
+              <input
+                id="rooms-total"
+                className="input"
+                inputMode="numeric"
+                value={state.numberOfRooms}
+                onChange={(event) =>
+                  update({ numberOfRooms: event.target.value.replace(/\D/g, "") })
+                }
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="rooms-available">
+                How many are available?<span className="required">*</span>
+              </label>
+              <input
+                id="rooms-available"
+                className="input"
+                inputMode="numeric"
+                value={state.availableRooms}
+                onChange={(event) => setAvailableRooms(event.target.value)}
+                aria-invalid={tooMany}
+              />
+              {tooMany && (
+                <span className="field-error">
+                  Available bedrooms cannot exceed the {total} in the property.
+                </span>
+              )}
+            </div>
+          </div>
+
+          {state.propertyType === "SHARED" && available !== null && available > 0 && !tooMany && (
+            <p className="muted small">
+              {available === 1
+                ? "One room to describe on the next step."
+                : `${available} rooms to describe on the next step, ready and named.`}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="stack--sm stack">
+        <h3 className="section-heading">Bathrooms</h3>
+        <div className="form-grid">
+          <div className="field">
+            <label className="field-label" htmlFor="bathrooms">
+              How many bathrooms?
+            </label>
+            <input
+              id="bathrooms"
+              className="input"
+              inputMode="numeric"
+              value={state.bathrooms}
+              onChange={(event) => update({ bathrooms: event.target.value.replace(/\D/g, "") })}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="stack--sm stack">
+        <h3 className="section-heading">The property</h3>
+
         {FEATURES.map((feature) => {
           const value = state.features[feature.key] ?? null;
           return (
@@ -919,13 +1075,56 @@ function StepFeatures({ state, update, isStudio }: StepProps & { isStudio: boole
           </div>
         </div>
       )}
+
+      {/*
+        The postcode is asked for again at the end deliberately. On a call the
+        agent often has only the outward code early on; this is where the full
+        one, and the door number, get pinned down.
+      */}
+      <div className="stack--sm stack">
+        <h3 className="section-heading">Exact location</h3>
+
+        <div className="form-grid">
+          <div className="field">
+            <label className="field-label" htmlFor="features-postcode">
+              Full postcode<span className="required">*</span>
+            </label>
+            <input
+              id="features-postcode"
+              className="input"
+              value={state.postcode}
+              onChange={(event) => update({ postcode: event.target.value.toUpperCase() })}
+              aria-invalid={state.postcode !== "" && !isValidPostcode(state.postcode)}
+            />
+            {state.postcode !== "" && !isValidPostcode(state.postcode) && (
+              <span className="field-error">Enter a valid UK postcode, for example M14 5AB.</span>
+            )}
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor="features-door">
+              Flat or door number
+            </label>
+            <input
+              id="features-door"
+              className="input"
+              value={state.doorNumber}
+              onChange={(event) => update({ doorNumber: event.target.value })}
+              placeholder="Optional"
+            />
+            <span className="field-hint">
+              Leave blank if the landlord has not given it - you can add it later.
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------ step five */
 
-function StepRent({ state, update, isStudio }: StepProps & { isStudio: boolean }) {
+function StepRent({ state, update }: StepProps) {
   if (state.propertyType === "SHARED") {
     return <SharedRooms state={state} update={update} />;
   }
@@ -940,65 +1139,6 @@ function StepRent({ state, update, isStudio }: StepProps & { isStudio: boolean }
       </div>
 
       <div className="form-grid">
-        {!isStudio && (
-          <>
-            <div className="field">
-              <label className="field-label" htmlFor="rooms-total">
-                Number of rooms<span className="required">*</span>
-              </label>
-              <input
-                id="rooms-total"
-                className="input"
-                inputMode="numeric"
-                value={state.numberOfRooms}
-                onChange={(event) =>
-                  update({ numberOfRooms: event.target.value.replace(/\D/g, "") })
-                }
-              />
-            </div>
-
-            <div className="field">
-              <label className="field-label" htmlFor="rooms-available">
-                Available rooms<span className="required">*</span>
-              </label>
-              <input
-                id="rooms-available"
-                className="input"
-                inputMode="numeric"
-                value={state.availableRooms}
-                onChange={(event) =>
-                  update({ availableRooms: event.target.value.replace(/\D/g, "") })
-                }
-                aria-invalid={
-                  state.numberOfRooms !== "" &&
-                  state.availableRooms !== "" &&
-                  Number(state.availableRooms) > Number(state.numberOfRooms)
-                }
-              />
-              {state.numberOfRooms !== "" &&
-                state.availableRooms !== "" &&
-                Number(state.availableRooms) > Number(state.numberOfRooms) && (
-                  <span className="field-error">
-                    Available rooms cannot exceed the number of rooms.
-                  </span>
-                )}
-            </div>
-          </>
-        )}
-
-        <div className="field">
-          <label className="field-label" htmlFor="bathrooms">
-            Bathrooms
-          </label>
-          <input
-            id="bathrooms"
-            className="input"
-            inputMode="numeric"
-            value={state.bathrooms}
-            onChange={(event) => update({ bathrooms: event.target.value.replace(/\D/g, "") })}
-          />
-        </div>
-
         <div className="field">
           <label className="field-label" htmlFor="available-from">
             Availability date<span className="required">*</span>
@@ -1049,19 +1189,30 @@ function SharedRooms({ state, update }: StepProps) {
     });
   }
 
+  /*
+   * Adding or removing a room here moves the availability count with it. The
+   * count and the list are the same fact stated twice, and a listing that says
+   * two rooms free while describing three is worse than either answer alone.
+   */
+  function setRooms(rooms: RoomDraft[]) {
+    update({ rooms, availableRooms: String(rooms.length) });
+  }
+
   return (
     <div className="stack">
       <div className="row row--between">
         <div>
           <h2>Rooms</h2>
           <p className="muted small" style={{ marginTop: 3 }}>
-            Rent, deposit and availability are set per room.
+            {state.rooms.length === 1
+              ? "One room, from the availability you entered. Rent, deposit and availability are set per room."
+              : `${state.rooms.length} rooms, from the availability you entered. Rent, deposit and availability are set per room.`}
           </p>
         </div>
         <button
           type="button"
           className="btn btn--secondary btn--sm"
-          onClick={() => update({ rooms: [...state.rooms, emptyRoom(state.rooms.length)] })}
+          onClick={() => setRooms([...state.rooms, emptyRoom(state.rooms.length)])}
         >
           <Plus size={14} />
           Add room
@@ -1078,12 +1229,10 @@ function SharedRooms({ state, update }: StepProps) {
                   type="button"
                   className="btn btn--ghost btn--sm"
                   onClick={() =>
-                    update({
-                      rooms: [
-                        ...state.rooms,
-                        { ...room, key: `room-${Date.now()}`, name: `${room.name} (copy)` },
-                      ],
-                    })
+                    setRooms([
+                      ...state.rooms,
+                      { ...room, key: `room-${Date.now()}`, name: `${room.name} (copy)` },
+                    ])
                   }
                 >
                   <Copy size={13} />
@@ -1093,9 +1242,7 @@ function SharedRooms({ state, update }: StepProps) {
                   type="button"
                   className="btn btn--ghost btn--sm"
                   disabled={state.rooms.length === 1}
-                  onClick={() =>
-                    update({ rooms: state.rooms.filter((item) => item.key !== room.key) })
-                  }
+                  onClick={() => setRooms(state.rooms.filter((item) => item.key !== room.key))}
                 >
                   <Trash2 size={13} />
                   Remove
@@ -1348,6 +1495,10 @@ function StepReview({ state, isStudio }: { state: WizardState; isStudio: boolean
             </dd>
           </div>
           <div>
+            <dt>Flat or door number</dt>
+            <dd>{state.doorNumber || "Not provided"}</dd>
+          </div>
+          <div>
             <dt>Type</dt>
             <dd>
               {state.propertyType === "SHARED"
@@ -1359,12 +1510,18 @@ function StepReview({ state, isStudio }: { state: WizardState; isStudio: boolean
                     : "House"}
             </dd>
           </div>
-          {state.propertyType === "FULL" && !isStudio && (
+          {!isStudio && (
             <div>
-              <dt>Rooms</dt>
+              <dt>Bedrooms</dt>
               <dd>
                 {state.availableRooms || 0} available of {state.numberOfRooms || 0}
               </dd>
+            </div>
+          )}
+          {state.bathrooms !== "" && (
+            <div>
+              <dt>Bathrooms</dt>
+              <dd>{state.bathrooms}</dd>
             </div>
           )}
           <div>

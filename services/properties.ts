@@ -121,6 +121,7 @@ export type RoomInput = {
 
 export type AddressInput = {
   addressLine1: string;
+  doorNumber?: string | null;
   addressLine2?: string | null;
   town?: string | null;
   county?: string | null;
@@ -339,6 +340,7 @@ export async function createProperty(
 
         addressLine1: input.address.addressLine1.trim(),
         addressLine2: input.address.addressLine2?.trim() || null,
+        doorNumber: input.address.doorNumber?.trim() || null,
         town: input.address.town?.trim() || null,
         county: input.address.county?.trim() || null,
         postcode: address.postcode,
@@ -349,8 +351,8 @@ export async function createProperty(
         ...pickFeatures(input.features),
         livingRoom: isStudio ? null : (input.livingRoom ?? null),
 
-        numberOfRooms: input.propertyType === "FULL" && !isStudio ? input.numberOfRooms : null,
-        availableRooms: input.propertyType === "FULL" && !isStudio ? input.availableRooms : null,
+        numberOfRooms: isStudio ? null : (input.numberOfRooms ?? null),
+        availableRooms: isStudio ? null : (input.availableRooms ?? null),
         bathrooms: input.bathrooms ?? null,
         availabilityDate: input.propertyType === "FULL" ? (input.availabilityDate ?? null) : null,
         rentPerMonthPence: input.propertyType === "FULL" ? (input.rentPerMonthPence ?? null) : null,

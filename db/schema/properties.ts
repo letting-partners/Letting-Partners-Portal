@@ -46,6 +46,12 @@ export const properties = pgTable(
 
     addressLine1: varchar("address_line1", { length: 200 }).notNull(),
     addressLine2: varchar("address_line2", { length: 200 }),
+    /**
+     * Flat or door number, captured separately from the street so it can be
+     * confirmed late in a call. Optional - a property can be onboarded before
+     * the landlord has given it.
+     */
+    doorNumber: varchar("door_number", { length: 32 }),
     town: varchar("town", { length: 120 }),
     county: varchar("county", { length: 120 }),
     postcode: varchar("postcode", { length: 10 }).notNull(),

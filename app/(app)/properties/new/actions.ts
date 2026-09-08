@@ -114,6 +114,7 @@ const propertySchema = z.object({
 
   addressLine1: z.string().trim().min(1, "Enter the property address."),
   addressLine2: z.string().trim().optional().nullable(),
+  doorNumber: z.string().trim().max(32).optional().nullable(),
   town: z.string().trim().optional().nullable(),
   county: z.string().trim().optional().nullable(),
   postcode: z.string().trim().min(1, "Enter the postcode."),
@@ -157,6 +158,7 @@ export async function createPropertyAction(
         address: {
           addressLine1: parsed.addressLine1,
           addressLine2: parsed.addressLine2 ?? null,
+          doorNumber: parsed.doorNumber ?? null,
           town: parsed.town ?? null,
           county: parsed.county ?? null,
           postcode: parsed.postcode,

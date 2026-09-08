@@ -1,0 +1,1 @@
+ALTER TABLE "properties" ADD COLUMN "door_number" varchar(32);
