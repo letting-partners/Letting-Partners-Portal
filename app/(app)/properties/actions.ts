@@ -10,6 +10,7 @@ import {
   PropertyError,
   removeRoom,
   savePublicDetails,
+  setPropertyFeatured,
   unpublishProperty,
   updateRoom,
 } from "@/services/properties";
@@ -54,6 +55,21 @@ export async function unpublishAction(
     const context = await requireAccess();
     await unpublishProperty(propertyId, reason ?? null, context);
     revalidateProperty(propertyId);
+    return { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Put a published listing on the website home page, or take it off. */
+export async function setFeaturedAction(
+  propertyId: string,
+  featured: boolean,
+): Promise<ActionResult> {
+  try {
+    const context = await requireAccess();
+    await setPropertyFeatured(propertyId, featured, context);
+    revalidatePath("/properties");
     return { ok: true, data: null };
   } catch (error) {
     return fail(error);

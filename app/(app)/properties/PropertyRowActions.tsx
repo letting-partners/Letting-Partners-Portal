@@ -3,19 +3,21 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, Globe, GlobeLock, Pencil, Trash2 } from "lucide-react";
+import { Eye, Globe, GlobeLock, Pencil, Star, StarOff, Trash2 } from "lucide-react";
 import { RowMenu } from "@/components/ui/RowMenu";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { archiveAction, publishAction, unpublishAction } from "./actions";
+import { archiveAction, publishAction, setFeaturedAction, unpublishAction } from "./actions";
 
 /** Per-row actions for the properties table. */
 export default function PropertyRowActions({
   propertyId,
   listingStatus,
+  isFeatured,
 }: {
   propertyId: string;
   listingStatus: string;
+  isFeatured: boolean;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -76,6 +78,25 @@ export default function PropertyRowActions({
           >
             <GlobeLock size={15} />
             Unpublish
+          </button>
+        )}
+
+        {/* Featuring only means something once the listing is public. */}
+        {isPublished && (
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            disabled={pending}
+            onClick={() =>
+              run(
+                () => setFeaturedAction(propertyId, !isFeatured),
+                isFeatured ? "Removed from the home page." : "Featured on the home page.",
+              )
+            }
+          >
+            {isFeatured ? <StarOff size={15} /> : <Star size={15} />}
+            {isFeatured ? "Unfeature" : "Feature on home"}
           </button>
         )}
 

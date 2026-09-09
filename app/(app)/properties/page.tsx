@@ -225,6 +225,7 @@ async function PropertiesTable({
                     <PropertyRowActions
                       propertyId={row.id}
                       listingStatus={row.listingStatus}
+                      isFeatured={row.isFeatured}
                     />
                   </td>
                 </tr>

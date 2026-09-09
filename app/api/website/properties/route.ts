@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
       minRentPence: poundsToPence(params.get("minRent")) ?? undefined,
       maxRentPence: poundsToPence(params.get("maxRent")) ?? undefined,
       search: params.get("search") ?? undefined,
+      featured: params.get("featured") === "1" || params.get("featured") === "true",
     });
 
     const response = NextResponse.json({ ok: true, properties });

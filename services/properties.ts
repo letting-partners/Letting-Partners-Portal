@@ -735,6 +735,61 @@ export async function publishProperty(
   });
 }
 
+/**
+ * Put a listing on the website's home page, or take it off.
+ *
+ * Only a published listing can be featured: featuring a draft would promise
+ * the home page something the public site cannot show. Uses the publish
+ * permission, because this is the same decision - what the outside world sees.
+ */
+export async function setPropertyFeatured(
+  propertyId: string,
+  featured: boolean,
+  context: AccessContext,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const property = await loadEditableProperty(tx, propertyId, context, canPublishProperty);
+
+    if (featured && property.listingStatus !== "PUBLISHED") {
+      throw new PropertyError("Publish this listing before featuring it on the home page.");
+    }
+
+    await tx
+      .update(properties)
+      .set({
+        isFeatured: featured,
+        featuredAt: featured ? new Date() : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(properties.id, propertyId));
+
+    await recordActivity(
+      {
+        type: "PROPERTY_UPDATED",
+        entityType: ENTITY.property,
+        entityId: propertyId,
+        actorId: context.user.id,
+        summary: featured
+          ? `${context.user.fullName} featured the listing on the home page`
+          : `${context.user.fullName} removed the listing from the home page`,
+      },
+      tx,
+    );
+
+    await recordAudit(
+      {
+        user: context.user,
+        action: "UPDATE",
+        entityType: ENTITY.property,
+        entityId: propertyId,
+        entityLabel: property.reference,
+        metadata: { featured },
+      },
+      tx,
+    );
+  });
+}
+
 export async function unpublishProperty(
   propertyId: string,
   reason: string | null,
@@ -983,6 +1038,7 @@ export async function listProperties(context: AccessContext, filters: PropertyLi
         propertyType: properties.propertyType,
         category: properties.category,
         listingStatus: properties.listingStatus,
+        isFeatured: properties.isFeatured,
         dealStage: properties.dealStage,
         rentPerMonthPence: properties.rentPerMonthPence,
         numberOfRooms: properties.numberOfRooms,

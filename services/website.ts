@@ -141,6 +141,8 @@ export type ListOptions = {
   maxRentPence?: number;
   bedrooms?: number;
   search?: string;
+  /** Only the listings chosen for the website home page. */
+  featured?: boolean;
 };
 
 /** Only PUBLISHED, non-deleted properties are ever visible to the website. */
@@ -157,6 +159,7 @@ export async function listWebsiteProperties(options: ListOptions = {}): Promise<
   if (options.area) filters.push(ilike(properties.area, `%${options.area}%`));
   if (options.outcode) filters.push(eq(properties.outcode, options.outcode.toUpperCase()));
   if (options.type) filters.push(eq(properties.propertyType, options.type));
+  if (options.featured) filters.push(eq(properties.isFeatured, true));
   if (options.bedrooms) filters.push(gte(properties.numberOfRooms, options.bedrooms));
   if (options.minRentPence) filters.push(gte(properties.rentPerMonthPence, options.minRentPence));
   if (options.maxRentPence) filters.push(lte(properties.rentPerMonthPence, options.maxRentPence));
@@ -193,7 +196,7 @@ export async function listWebsiteProperties(options: ListOptions = {}): Promise<
     })
     .from(properties)
     .where(and(...filters))
-    .orderBy(desc(properties.publishedAt))
+    .orderBy(options.featured ? desc(properties.featuredAt) : desc(properties.publishedAt))
     .limit(limit)
     .offset(offset);
 

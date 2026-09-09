@@ -96,6 +96,14 @@ export const properties = pgTable(
     metaTitle: varchar("meta_title", { length: 200 }),
     metaDescription: varchar("meta_description", { length: 320 }),
 
+    /**
+     * Chosen for the website's home page. Independent of listing status: a
+     * property has to be published before featuring means anything, which the
+     * service enforces rather than the column.
+     */
+    isFeatured: boolean("is_featured").notNull().default(false),
+    featuredAt: timestamp("featured_at", { withTimezone: true }),
+
     listingStatus: listingStatusEnum("listing_status").notNull().default("DRAFT"),
     dealStage: dealStageEnum("deal_stage").notNull().default("AVAILABLE"),
 
