@@ -33,6 +33,13 @@ const tenantSchema = z.object({
   moveInDate: z.string().optional().nullable(),
   propertyTypePreference: z.enum(["HOUSE", "FLAT", "STUDIO_FLAT"]).optional().nullable(),
   bedrooms: z.number().int().nonnegative().optional().nullable(),
+
+  /* Portal-only fields. The website form does not collect these. */
+  roomType: z.string().trim().max(80).optional().nullable(),
+  occupants: z.string().trim().max(40).optional().nullable(),
+  monthlyIncomePence: z.number().int().nonnegative().optional().nullable(),
+  occupation: z.string().trim().max(160).optional().nullable(),
+  countryOfOrigin: z.string().trim().max(120).optional().nullable(),
 });
 
 export async function createTenantAction(

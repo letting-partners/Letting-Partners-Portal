@@ -155,6 +155,16 @@ export default async function TenantDetailPage({
                     ? tenant.propertyTypePreference.replace(/_/g, " ").toLowerCase()
                     : "No preference",
                 },
+                { term: "Room type", value: tenant.roomType ?? "-" },
+                { term: "Number of people", value: tenant.occupants ?? "-" },
+                {
+                  term: "Monthly income",
+                  value: tenant.monthlyIncomePence
+                    ? `${formatGBP(tenant.monthlyIncomePence)} pcm`
+                    : "-",
+                },
+                { term: "Occupation", value: tenant.occupation ?? "-" },
+                { term: "Country of origin", value: tenant.countryOfOrigin ?? "-" },
                 { term: "Requirements", value: tenant.requirements ?? "-" },
               ]}
             />

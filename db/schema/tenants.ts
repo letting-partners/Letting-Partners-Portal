@@ -37,6 +37,17 @@ export const tenants = pgTable(
     propertyTypePreference: propertyCategoryEnum("property_type_preference"),
     bedrooms: integer("bedrooms"),
 
+    /*
+     * Collected when an agent registers a tenant in the portal. The public
+     * website form deliberately does not ask for these - income and occupation
+     * are questions for a conversation, not a first enquiry.
+     */
+    roomType: varchar("room_type", { length: 80 }),
+    occupants: varchar("occupants", { length: 40 }),
+    monthlyIncomePence: integer("monthly_income_pence"),
+    occupation: varchar("occupation", { length: 160 }),
+    countryOfOrigin: varchar("country_of_origin", { length: 120 }),
+
     status: tenantStatusEnum("status").notNull().default("ACTIVE"),
     source: contactSourceEnum("source").notNull().default("MANUAL"),
 

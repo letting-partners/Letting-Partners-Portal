@@ -50,6 +50,13 @@ export type CreateTenantInput = {
   bedrooms?: number | null;
   /** Admins may register a tenant on behalf of an agent. */
   ownerAgentId?: string | null;
+
+  /* Asked in the portal only - see the schema for why. */
+  roomType?: string | null;
+  occupants?: string | null;
+  monthlyIncomePence?: number | null;
+  occupation?: string | null;
+  countryOfOrigin?: string | null;
 };
 
 export async function createTenant(
@@ -93,6 +100,11 @@ export async function createTenant(
         moveInDate: input.moveInDate || null,
         propertyTypePreference: input.propertyTypePreference ?? null,
         bedrooms: input.bedrooms ?? null,
+        roomType: input.roomType?.trim() || null,
+        occupants: input.occupants?.trim() || null,
+        monthlyIncomePence: input.monthlyIncomePence ?? null,
+        occupation: input.occupation?.trim() || null,
+        countryOfOrigin: input.countryOfOrigin?.trim() || null,
         status: "ACTIVE",
         ownerAgentId,
         createdBy: context.user.id,
@@ -354,6 +366,13 @@ export async function updateTenant(
   }
   if (input.email !== undefined) patch.email = input.email?.trim() || null;
   if (input.area !== undefined) patch.area = input.area?.trim() || null;
+  if (input.roomType !== undefined) patch.roomType = input.roomType?.trim() || null;
+  if (input.occupants !== undefined) patch.occupants = input.occupants?.trim() || null;
+  if (input.monthlyIncomePence !== undefined) patch.monthlyIncomePence = input.monthlyIncomePence;
+  if (input.occupation !== undefined) patch.occupation = input.occupation?.trim() || null;
+  if (input.countryOfOrigin !== undefined) {
+    patch.countryOfOrigin = input.countryOfOrigin?.trim() || null;
+  }
   if (input.postcodePreferences !== undefined) {
     patch.postcodePreferences = input.postcodePreferences?.trim().toUpperCase() || null;
   }

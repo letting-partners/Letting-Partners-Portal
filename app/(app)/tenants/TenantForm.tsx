@@ -35,6 +35,11 @@ export default function TenantForm({
   const [maxBudget, setMaxBudget] = useState<number | null>(null);
   const [moveInDate, setMoveInDate] = useState("");
   const [bedrooms, setBedrooms] = useState("");
+  const [roomType, setRoomType] = useState("");
+  const [occupants, setOccupants] = useState("");
+  const [monthlyIncome, setMonthlyIncome] = useState<number | null>(null);
+  const [occupation, setOccupation] = useState("");
+  const [countryOfOrigin, setCountryOfOrigin] = useState("");
   const [typePreference, setTypePreference] = useState("");
 
   function reset() {
@@ -66,6 +71,11 @@ export default function TenantForm({
         maxBudgetPence: maxBudget,
         moveInDate: moveInDate || null,
         bedrooms: bedrooms ? Number(bedrooms) : null,
+        roomType: roomType || null,
+        occupants: occupants || null,
+        monthlyIncomePence: monthlyIncome,
+        occupation: occupation || null,
+        countryOfOrigin: countryOfOrigin || null,
         propertyTypePreference: (typePreference || null) as
           | "HOUSE"
           | "FLAT"
@@ -218,6 +228,71 @@ export default function TenantForm({
               onChange={setMaxBudget}
               hint="Per month"
             />
+
+            <div className="field">
+              <label className="field-label" htmlFor="tenant-room-type">
+                Room type
+              </label>
+              <select
+                id="tenant-room-type"
+                className="select"
+                value={roomType}
+                onChange={(event) => setRoomType(event.target.value)}
+              >
+                <option value="">Not specified</option>
+                <option value="Single room">Single room</option>
+                <option value="Double room">Double room</option>
+                <option value="En-suite room">En-suite room</option>
+                <option value="Master room">Master room</option>
+                <option value="Twin room">Twin room</option>
+                <option value="Studio">Studio</option>
+                <option value="Whole property">Whole property</option>
+              </select>
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="tenant-occupants">
+                Number of people
+              </label>
+              <input
+                id="tenant-occupants"
+                className="input"
+                value={occupants}
+                placeholder="e.g. 2 adults and a child"
+                onChange={(event) => setOccupants(event.target.value)}
+              />
+            </div>
+
+            <MoneyInput
+              label="Monthly income"
+              value={monthlyIncome}
+              onChange={setMonthlyIncome}
+              hint="Take home, per month"
+            />
+
+            <div className="field">
+              <label className="field-label" htmlFor="tenant-occupation">
+                Occupation
+              </label>
+              <input
+                id="tenant-occupation"
+                className="input"
+                value={occupation}
+                onChange={(event) => setOccupation(event.target.value)}
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="tenant-country">
+                Country of origin
+              </label>
+              <input
+                id="tenant-country"
+                className="input"
+                value={countryOfOrigin}
+                onChange={(event) => setCountryOfOrigin(event.target.value)}
+              />
+            </div>
 
             <div className="field">
               <label className="field-label" htmlFor="tenant-bedrooms">

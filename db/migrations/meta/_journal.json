@@ -43,6 +43,13 @@
       "when": 1788990984043,
       "tag": "0005_hot_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788997430780,
+      "tag": "0006_damp_dormammu",
+      "breakpoints": true
     }
   ]
 }
