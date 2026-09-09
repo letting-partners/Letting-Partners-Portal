@@ -10,6 +10,7 @@ import {
   PropertyError,
   removeRoom,
   savePublicDetails,
+  setPropertyAvailability,
   setPropertyFeatured,
   unpublishProperty,
   updateRoom,
@@ -55,6 +56,24 @@ export async function unpublishAction(
     const context = await requireAccess();
     await unpublishProperty(propertyId, reason ?? null, context);
     revalidateProperty(propertyId);
+    return { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/**
+ * Mark a listing unavailable on the website, or available again. The page
+ * stays live either way - see setPropertyAvailability.
+ */
+export async function setAvailabilityAction(
+  propertyId: string,
+  available: boolean,
+): Promise<ActionResult> {
+  try {
+    const context = await requireAccess();
+    await setPropertyAvailability(propertyId, available, context);
+    revalidatePath("/properties");
     return { ok: true, data: null };
   } catch (error) {
     return fail(error);

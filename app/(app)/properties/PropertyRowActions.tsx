@@ -3,11 +3,17 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, Globe, GlobeLock, Pencil, Star, StarOff, Trash2 } from "lucide-react";
+import { CircleSlash, Eye, Globe, GlobeLock, Pencil, RotateCcw, Star, StarOff, Trash2 } from "lucide-react";
 import { RowMenu } from "@/components/ui/RowMenu";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { archiveAction, publishAction, setFeaturedAction, unpublishAction } from "./actions";
+import {
+  archiveAction,
+  publishAction,
+  setAvailabilityAction,
+  setFeaturedAction,
+  unpublishAction,
+} from "./actions";
 
 /** Per-row actions for the properties table. */
 export default function PropertyRowActions({
@@ -26,6 +32,9 @@ export default function PropertyRowActions({
 
   const isPublished = listingStatus === "PUBLISHED";
   const isDraft = listingStatus === "DRAFT";
+  // Let agreed is still on the website, just marked as gone.
+  const isLetAgreed = listingStatus === "LET_AGREED";
+  const isLive = isPublished || isLetAgreed;
 
   function run(action: () => Promise<{ ok: boolean; error?: string }>, success: string) {
     startTransition(async () => {
@@ -68,7 +77,25 @@ export default function PropertyRowActions({
           </button>
         )}
 
-        {isPublished && (
+        {isLive && (
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            disabled={pending}
+            onClick={() =>
+              run(
+                () => setAvailabilityAction(propertyId, isLetAgreed),
+                isLetAgreed ? "Marked available." : "Marked unavailable on the website.",
+              )
+            }
+          >
+            {isLetAgreed ? <RotateCcw size={15} /> : <CircleSlash size={15} />}
+            {isLetAgreed ? "Mark available" : "Mark unavailable"}
+          </button>
+        )}
+
+        {isLive && (
           <button
             type="button"
             className="menu-item"
@@ -121,7 +148,7 @@ export default function PropertyRowActions({
           run(() => unpublishAction(propertyId), "Removed from the website.")
         }
         title="Unpublish this listing?"
-        message="It will be removed from the public website immediately. The record and all of its history stay in the portal, and you can publish it again at any time."
+        message="The page is removed from the website, so its link stops working and any search ranking it had earned is lost. If it is simply let, use Mark unavailable instead - that keeps the page and says so."
         confirmLabel="Unpublish"
         pending={pending}
       />

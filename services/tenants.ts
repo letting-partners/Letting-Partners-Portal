@@ -1,10 +1,18 @@
 import "server-only";
-import { and, count, desc, eq, ilike, isNull, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, or, type SQL } from "drizzle-orm";
 import { db, type Transaction } from "@/db";
-import { deals, properties, propertyRooms, tenants, type tenantStatusEnum } from "@/db/schema";
+import {
+  deals,
+  properties,
+  propertyRooms,
+  tenants,
+  users,
+  type tenantStatusEnum,
+} from "@/db/schema";
 import { normalizeUKPhoneDetailed, PHONE_ERROR_MESSAGES } from "@/lib/phone";
 import { ENTITY, recordActivity, recordAudit } from "./audit";
 import { loadPeopleMap } from "./landlords";
+import { notifyMany } from "./notifications";
 import {
   canEditTenant,
   canViewTenant,
@@ -216,6 +224,116 @@ export async function getTenant(id: string, context: AccessContext) {
     creator: people.get(tenant.createdBy) ?? null,
     canEdit: canEditTenant(context, tenant),
   };
+}
+
+/**
+ * A tenant registering through the public website.
+ *
+ * There is no signed-in user behind this, so it cannot go through
+ * createTenant. The registration is owned by an administrator until somebody
+ * picks it up, and every admin and agent is notified - a lead that lands in
+ * the database and nowhere else is a lead nobody works.
+ *
+ * An existing tenant on the same number is updated rather than duplicated, so
+ * a second registration reads as the same person changing their mind.
+ */
+export async function registerTenantFromWebsite(input: {
+  name: string;
+  email?: string | null;
+  phone: string;
+  area?: string | null;
+  requirements?: string | null;
+  maxBudgetPence?: number | null;
+  moveInDate?: string | null;
+  propertyTypePreference?: "HOUSE" | "FLAT" | "STUDIO_FLAT" | null;
+}): Promise<{ tenantId: string; created: boolean }> {
+  const normalization = normalizeUKPhoneDetailed(input.phone);
+  if (!normalization.ok) throw new TenantError("Enter a valid UK phone number.");
+  if (!input.name.trim()) throw new TenantError("Enter your name.");
+
+  const { normalized, original } = normalization;
+
+  return db.transaction(async (tx) => {
+    const owners = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.role, "SUPER_ADMIN"), isNull(users.deletedAt)))
+      .limit(1);
+
+    const owner = owners[0];
+    if (!owner) throw new TenantError("No administrator is available to receive registrations.");
+
+    const existingRows = await tx
+      .select({ id: tenants.id })
+      .from(tenants)
+      .where(and(eq(tenants.normalizedPhone, normalized), isNull(tenants.deletedAt)))
+      .limit(1);
+
+    const patch = {
+      name: input.name.trim(),
+      email: input.email?.trim() || null,
+      area: input.area?.trim() || null,
+      requirements: input.requirements?.trim() || null,
+      maxBudgetPence: input.maxBudgetPence ?? null,
+      moveInDate: input.moveInDate || null,
+      propertyTypePreference: input.propertyTypePreference ?? null,
+    };
+
+    let tenantId: string;
+    const created = !existingRows[0];
+
+    if (existingRows[0]) {
+      tenantId = existingRows[0].id;
+      await tx
+        .update(tenants)
+        .set({ ...patch, status: "ACTIVE", updatedAt: new Date() })
+        .where(eq(tenants.id, tenantId));
+    } else {
+      const inserted = await tx
+        .insert(tenants)
+        .values({
+          ...patch,
+          originalPhone: original,
+          normalizedPhone: normalized,
+          ownerAgentId: owner.id,
+          createdBy: owner.id,
+          status: "ACTIVE",
+        })
+        .returning({ id: tenants.id });
+      tenantId = inserted[0].id;
+    }
+
+    await recordActivity(
+      {
+        type: "TENANT_CREATED",
+        entityType: ENTITY.tenant,
+        entityId: tenantId,
+        actorId: owner.id,
+        summary: `${patch.name} registered through the website`,
+      },
+      tx,
+    );
+
+    const recipients = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(and(inArray(users.role, ["SUPER_ADMIN", "AGENT"]), isNull(users.deletedAt)));
+
+    await notifyMany(
+      recipients.map((row) => row.id),
+      {
+        type: "USER_ASSIGNED",
+        title: created ? "New tenant registration" : "Tenant registration updated",
+        body: [patch.name, patch.area, patch.requirements].filter(Boolean).join(" - ").slice(0, 180),
+        href: `/tenants/${tenantId}`,
+        entityType: ENTITY.tenant,
+        entityId: tenantId,
+      },
+      tx,
+    );
+
+    return { tenantId, created };
+  });
 }
 
 export async function updateTenant(

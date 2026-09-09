@@ -790,6 +790,64 @@ export async function setPropertyFeatured(
   });
 }
 
+/**
+ * Mark a live listing as no longer available, or put it back.
+ *
+ * Deliberately not an unpublish. The page stays on the website with its URL,
+ * its ranking and its inbound links intact, and simply says the property is
+ * gone - which is both better for search and more use to a visitor following
+ * a link they saved last week.
+ */
+export async function setPropertyAvailability(
+  propertyId: string,
+  available: boolean,
+  context: AccessContext,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const property = await loadEditableProperty(tx, propertyId, context, canPublishProperty);
+
+    const publishedStatuses = ["PUBLISHED", "LET_AGREED"];
+    if (!publishedStatuses.includes(property.listingStatus)) {
+      throw new PropertyError("Only a published listing can be marked unavailable.");
+    }
+
+    await tx
+      .update(properties)
+      .set({
+        listingStatus: available ? "PUBLISHED" : "LET_AGREED",
+        // A property that is gone should not also be leading the home page.
+        ...(available ? {} : { isFeatured: false, featuredAt: null }),
+        updatedAt: new Date(),
+      })
+      .where(eq(properties.id, propertyId));
+
+    await recordActivity(
+      {
+        type: "PROPERTY_UPDATED",
+        entityType: ENTITY.property,
+        entityId: propertyId,
+        actorId: context.user.id,
+        summary: available
+          ? `${context.user.fullName} marked the listing available again`
+          : `${context.user.fullName} marked the listing unavailable`,
+      },
+      tx,
+    );
+
+    await recordAudit(
+      {
+        user: context.user,
+        action: "UPDATE",
+        entityType: ENTITY.property,
+        entityId: propertyId,
+        entityLabel: property.reference,
+        metadata: { available },
+      },
+      tx,
+    );
+  });
+}
+
 export async function unpublishProperty(
   propertyId: string,
   reason: string | null,

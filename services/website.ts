@@ -145,9 +145,20 @@ export type ListOptions = {
   featured?: boolean;
 };
 
-/** Only PUBLISHED, non-deleted properties are ever visible to the website. */
+/**
+ * What the website may see.
+ *
+ * LET_AGREED is included deliberately. Taking a let property off the site
+ * would break its URL, throw away whatever ranking the page had earned, and
+ * leave anyone holding the link at a 404. It stays published and is marked
+ * unavailable instead, which is also more honest to a visitor who saw it
+ * yesterday.
+ */
 function publishedFilter() {
-  return and(eq(properties.listingStatus, "PUBLISHED"), isNull(properties.deletedAt));
+  return and(
+    inArray(properties.listingStatus, ["PUBLISHED", "LET_AGREED"]),
+    isNull(properties.deletedAt),
+  );
 }
 
 export async function listWebsiteProperties(options: ListOptions = {}): Promise<WebsiteProperty[]> {
@@ -159,7 +170,11 @@ export async function listWebsiteProperties(options: ListOptions = {}): Promise<
   if (options.area) filters.push(ilike(properties.area, `%${options.area}%`));
   if (options.outcode) filters.push(eq(properties.outcode, options.outcode.toUpperCase()));
   if (options.type) filters.push(eq(properties.propertyType, options.type));
-  if (options.featured) filters.push(eq(properties.isFeatured, true));
+  if (options.featured) {
+    filters.push(eq(properties.isFeatured, true));
+    // The home page should not lead with something already let.
+    filters.push(eq(properties.listingStatus, "PUBLISHED"));
+  }
   if (options.bedrooms) filters.push(gte(properties.numberOfRooms, options.bedrooms));
   if (options.minRentPence) filters.push(gte(properties.rentPerMonthPence, options.minRentPence));
   if (options.maxRentPence) filters.push(lte(properties.rentPerMonthPence, options.maxRentPence));
@@ -192,6 +207,7 @@ export async function listWebsiteProperties(options: ListOptions = {}): Promise<
       bathrooms: properties.bathrooms,
       rentPerMonthPence: properties.rentPerMonthPence,
       dealStage: properties.dealStage,
+      listingStatus: properties.listingStatus,
       publishedAt: properties.publishedAt,
     })
     .from(properties)
@@ -225,9 +241,10 @@ export async function listWebsiteProperties(options: ListOptions = {}): Promise<
       bathrooms: row.bathrooms,
       type: describeType(row),
       available:
-        row.propertyType === "SHARED"
+        row.listingStatus !== "LET_AGREED" &&
+        (row.propertyType === "SHARED"
           ? (rooms?.available ?? 0) > 0
-          : row.dealStage !== "CLOSED_SUCCESSFUL",
+          : row.dealStage !== "CLOSED_SUCCESSFUL"),
       image: coverImages.get(row.id) ?? null,
     };
   });
@@ -318,9 +335,10 @@ export async function getWebsiteProperty(
     bathrooms: property.bathrooms,
     type: describeType(property),
     available:
-      property.propertyType === "SHARED"
+      property.listingStatus !== "LET_AGREED" &&
+      (property.propertyType === "SHARED"
         ? availableRooms.length > 0
-        : property.dealStage !== "CLOSED_SUCCESSFUL",
+        : property.dealStage !== "CLOSED_SUCCESSFUL"),
     image: images[0]?.url ?? null,
 
     description: property.description,
