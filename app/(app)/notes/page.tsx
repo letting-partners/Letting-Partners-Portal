@@ -8,6 +8,7 @@ import { StickyNote } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { Avatar } from "@/components/ui/Avatar";
 import { formatDateTime, formatRelative } from "@/lib/dates";
+import NoteRowActions from "./NoteRowActions";
 
 export const metadata: Metadata = { title: "Notes" };
 
@@ -75,8 +76,15 @@ export default async function NotesPage() {
                         {note.entityType.toLowerCase()}
                       </span>
                     </span>
-                    <span className="subtle small" title={formatDateTime(note.createdAt)}>
-                      {formatRelative(note.createdAt)}
+                    <span className="row" style={{ gap: 6 }}>
+                      <span className="subtle small" title={formatDateTime(note.createdAt)}>
+                        {formatRelative(note.createdAt)}
+                      </span>
+                      <NoteRowActions
+                        noteId={note.id}
+                        body={note.body}
+                        canManage={context.isAdmin || note.authorId === context.user.id}
+                      />
                     </span>
                   </div>
 

@@ -9,6 +9,7 @@ import { Pagination, SearchInput } from "@/components/ui/TableControls";
 import { formatDate, formatRelative } from "@/lib/dates";
 import { listDealsByStage } from "@/services/deals";
 import PipelineOutcome from "../viewings/PipelineOutcome";
+import DealRowActions from "../viewings/DealRowActions";
 
 export const metadata: Metadata = { title: "Verifications" };
 
@@ -93,6 +94,12 @@ export default async function VerificationsPage({
                         dealId={row.id}
                         propertyId={row.propertyId}
                         compact
+                      />
+                      <DealRowActions
+                        dealId={row.id}
+                        propertyId={row.propertyId}
+                        label={row.propertyTitle ?? "this deal"}
+                        isAdmin={context.isAdmin}
                       />
                     </td>
                   </tr>

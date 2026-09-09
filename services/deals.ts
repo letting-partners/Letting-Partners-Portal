@@ -851,6 +851,36 @@ export async function reopenDeal(
   });
 }
 
+/**
+ * Cancel a live deal.
+ *
+ * This is what "delete" means for a viewing, verification or closing: those
+ * rows are stages of a deal, and removing one on its own would leave the deal
+ * pointing at a stage that no longer exists. Cancelling walks the deal to
+ * CLOSED_UNSUCCESSFUL and frees the unit, so the property or room can be let
+ * to somebody else, while the whole attempt stays on the record.
+ *
+ * A completed sale is not cancellable here - commission has been calculated
+ * against it, and unpicking that is a correction, not a deletion.
+ */
+export async function cancelDeal(dealId: string, actorId: string, reason: string): Promise<void> {
+  await db.transaction(async (tx: Transaction) => {
+    const rows = await tx.select().from(deals).where(eq(deals.id, dealId)).limit(1);
+    const deal = rows[0];
+    if (!deal) throw new DealError("That deal no longer exists.");
+
+    if (deal.stage === "CLOSED_SUCCESSFUL") {
+      throw new DealError("A completed sale cannot be cancelled. Record a correction instead.");
+    }
+    if (deal.stage === "CLOSED_UNSUCCESSFUL") {
+      throw new DealError("That deal is already closed.");
+    }
+
+    await transition(tx, deal, "CLOSED_UNSUCCESSFUL", actorId, reason, null);
+    await setPipelineStatus(tx, deal.propertyId, deal.roomId, "AVAILABLE");
+  });
+}
+
 /* ------------------------------------------------------------ read paths */
 
 /** Every deal on a property, with its tenant and agents, newest first. */

@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ForbiddenError, requireAgentOrAdmin } from "@/services/permissions";
+import { ForbiddenError, requireAdmin, requireAgentOrAdmin } from "@/services/permissions";
 import {
+  cancelDeal,
   closeDeal,
   completeVerification,
   completeViewing,
@@ -169,6 +170,34 @@ export async function completeVerificationAction(input: {
 }
 
 /* ------------------------------------------------------------- closing */
+
+/**
+ * Cancel a live deal - the delete for a viewing, verification or closing.
+ *
+ * Admin only: it frees the unit and ends somebody else's deal, so it is not a
+ * decision an individual agent makes about another agent's pipeline.
+ */
+export async function cancelDealAction(
+  dealId: string,
+  reason: string,
+): Promise<ActionResult> {
+  try {
+    const context = await requireAdmin();
+    const trimmed = reason.trim();
+    if (!trimmed) return { ok: false, error: "Give a reason for cancelling." };
+
+    await cancelDeal(dealId, context.user.id, trimmed);
+
+    revalidatePath("/viewings");
+    revalidatePath("/verifications");
+    revalidatePath("/closings");
+    revalidatePath("/properties");
+    revalidatePath("/dashboard");
+    return { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
 
 export async function closeDealAction(input: {
   dealId: string;

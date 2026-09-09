@@ -9,6 +9,7 @@ import { ClearFilters, FilterSelect, Pagination, SearchInput } from "@/component
 import { formatDateTime } from "@/lib/dates";
 import { listViewings } from "@/services/deals";
 import PipelineOutcome from "./PipelineOutcome";
+import DealRowActions from "./DealRowActions";
 
 export const metadata: Metadata = { title: "Viewings" };
 
@@ -128,6 +129,12 @@ export default async function ViewingsPage({
                           compact
                         />
                       )}
+                      <DealRowActions
+                        dealId={row.dealId}
+                        propertyId={row.propertyId}
+                        label={row.propertyTitle ?? "this viewing"}
+                        isAdmin={context.isAdmin}
+                      />
                     </td>
                   </tr>
                 ))}

@@ -12,6 +12,8 @@ import { displayPhone } from "@/lib/phone";
 import { listTenants } from "@/services/tenants";
 import { listAssignableAgents } from "@/services/properties";
 import TenantForm from "./TenantForm";
+import TenantRowActions from "./TenantRowActions";
+import { canEditTenant } from "@/services/permissions";
 
 export const metadata: Metadata = { title: "Tenants" };
 
@@ -107,6 +109,9 @@ export default async function TenantsPage({
                   <th>Status</th>
                   <th>Agent</th>
                   <th>Registered</th>
+                  <th className="table-actions">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -153,6 +158,22 @@ export default async function TenantsPage({
                     </td>
 
                     <td className="table-secondary">{formatDate(row.createdAt)}</td>
+
+                    <td className="table-actions">
+                      <TenantRowActions
+                        tenant={{
+                          id: row.id,
+                          name: row.name,
+                          email: row.email,
+                          area: row.area,
+                          postcodePreferences: row.postcodePreferences,
+                          requirements: row.requirements,
+                          status: row.status,
+                        }}
+                        canEdit={canEditTenant(context, { ownerAgentId: row.ownerAgentId })}
+                        isAdmin={context.isAdmin}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
