@@ -11,6 +11,7 @@ import {
   Images,
   KeyRound,
   LayoutDashboard,
+  Newspaper,
   PhoneCall,
   PhoneOff,
   Repeat2,
@@ -85,7 +86,10 @@ export const NAVIGATION: NavGroup[] = [
   },
   {
     label: "Resources",
-    items: [{ label: "Image library", href: "/images", icon: Images, roles: AGENT_UP }],
+    items: [
+      { label: "Image library", href: "/images", icon: Images, roles: AGENT_UP },
+      { label: "Blog", href: "/blog", icon: Newspaper, roles: ADMIN_ONLY },
+    ],
   },
   {
     label: "Reporting",

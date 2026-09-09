@@ -788,3 +788,251 @@
     bottom: 14px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   BLOG EDITOR
+   Writing surface on the left, everything that governs publishing on the right.
+--------------------------------------------------------------------------- */
+
+.blog-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 372px);
+  gap: 20px;
+  align-items: start;
+}
+
+.blog-editor-main {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.blog-editor-side {
+  display: grid;
+  gap: 14px;
+  position: sticky;
+  top: calc(var(--topbar-height) + 14px);
+}
+
+.input--title {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.blog-slug-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.blog-slug-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.blog-banner-preview {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-3);
+}
+
+/* Thumbnail beside a row in the article list. */
+.blog-row-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.blog-row-thumb {
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 38px;
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  background: var(--surface-3);
+}
+
+/* ----------------------------------------------------------- seo checks */
+
+.seo-checks {
+  display: grid;
+  gap: 7px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+
+.seo-checks li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.seo-check-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.seo-checks li[data-ok] {
+  color: var(--text);
+}
+
+.seo-checks li[data-ok] .seo-check-dot {
+  background: var(--positive, #16a34a);
+}
+
+/* --------------------------------------------------------- rich editor */
+
+.editor {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+  padding: 6px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: var(--topbar-height);
+  z-index: 5;
+}
+
+.editor-toolbar-divider {
+  width: 1px;
+  height: 18px;
+  margin-inline: 4px;
+  background: var(--border-strong);
+}
+
+.editor-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.editor-tool:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.editor-tool:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.editor-surface {
+  min-height: 420px;
+  padding: 18px;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+
+.editor-surface[data-empty]::before {
+  content: attr(data-placeholder);
+  color: var(--text-subtle);
+  pointer-events: none;
+}
+
+.input.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+}
+
+/* ---------------------------------------------------------------- prose */
+
+.prose h2 {
+  font-size: 1.32rem;
+  margin: 1.4em 0 0.5em;
+  line-height: 1.25;
+}
+
+.prose h3 {
+  font-size: 1.1rem;
+  margin: 1.3em 0 0.4em;
+}
+
+.prose p {
+  margin: 0 0 0.9em;
+  line-height: 1.72;
+}
+
+.prose ul,
+.prose ol {
+  margin: 0 0 1em;
+  padding-left: 1.3em;
+}
+
+.prose li {
+  margin-bottom: 0.35em;
+  line-height: 1.66;
+}
+
+.prose blockquote {
+  margin: 1.2em 0;
+  padding: 2px 0 2px 16px;
+  border-left: 3px solid var(--accent);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.prose a {
+  color: var(--accent-strong, var(--accent));
+  text-decoration: underline;
+}
+
+.prose figure {
+  margin: 1.4em 0;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  display: block;
+}
+
+.prose figcaption {
+  margin-top: 7px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.prose hr {
+  margin: 1.8em 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 1100px) {
+  .blog-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .blog-editor-side {
+    position: static;
+  }
+}

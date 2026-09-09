@@ -12,5 +12,6 @@ export * from "./deals";
 export * from "./sales";
 export * from "./collaborations";
 export * from "./comms";
+export * from "./blog";
 export * from "./settings";
 export * from "./audit";

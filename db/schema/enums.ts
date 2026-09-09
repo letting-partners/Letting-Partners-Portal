@@ -188,6 +188,9 @@ export const internalConversationTypeEnum = pgEnum("internal_conversation_type",
   "TEAM",
 ]);
 
+/** The lifecycle of a website article. */
+export const blogStatusEnum = pgEnum("blog_status", ["DRAFT", "PUBLISHED", "TRASHED"]);
+
 export const notificationTypeEnum = pgEnum("notification_type", [
   "FOLLOW_UP_DUE",
   "CROSS_SELL_REQUEST",

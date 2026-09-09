@@ -128,4 +128,5 @@ export const ENTITY = {
   settings: "SystemSetting",
   conversation: "CustomerConversation",
   image: "ImageAsset",
+  blogPost: "BlogPost",
 } as const;
