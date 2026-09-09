@@ -20,7 +20,8 @@
     "check:email": "node scripts/check-email.mjs",
     "db:reset-demo": "node scripts/reset-demo-data.mjs",
     "seed:blog": "node scripts/seed-blog.mjs",
-    "fix:meta": "node scripts/fix-meta-descriptions.mjs"
+    "fix:meta": "node scripts/fix-meta-descriptions.mjs",
+    "fix:slugs": "node scripts/reslug-properties.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",

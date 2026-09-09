@@ -28,10 +28,21 @@ export type SlugSource = {
 };
 
 /**
- * Builds a human readable slug such as
- * "2-bedroom-flat-manchester-m14-lp-1042".
+ * Builds a readable slug from the listing title, such as
+ * "spacious-master-room-forest-gate".
+ *
+ * The title alone, because that is what the listing is called and what reads
+ * well in a search result or a shared link. The reference is deliberately not
+ * in it - lp-0003 means nothing to anyone outside the office - and uniqueness
+ * comes from disambiguateSlug instead.
+ *
+ * Where there is no title, the structured fields stand in so the URL is still
+ * descriptive rather than falling back to a reference number.
  */
 export function buildPropertySlug(source: SlugSource): string {
+  const fromTitle = source.title ? slugify(source.title) : "";
+  if (fromTitle) return fromTitle;
+
   const parts: string[] = [];
 
   if (source.bedrooms && source.bedrooms > 0) {
@@ -45,10 +56,6 @@ export function buildPropertySlug(source: SlugSource): string {
 
   const outcode = getOutcode(source.postcode);
   if (outcode) parts.push(outcode);
-
-  if (parts.length === 0 && source.title) parts.push(source.title);
-
-  parts.push(source.reference);
 
   return slugify(parts.join(" ")) || slugify(source.reference);
 }
