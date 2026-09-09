@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { MAX_TITLE_LENGTH } from "@/services/listing-seo";
 import { z } from "zod";
 import { ForbiddenError, requireAccess } from "@/services/permissions";
 import {
@@ -111,7 +112,11 @@ export async function archiveAction(
 
 const publicDetailsSchema = z.object({
   propertyId: z.string().uuid(),
-  title: z.string().trim().min(1, "Enter a property title.").max(200),
+  title: z
+    .string()
+    .trim()
+    .min(1, "Enter a property title.")
+    .max(MAX_TITLE_LENGTH, `Keep the title to ${MAX_TITLE_LENGTH} characters so it fits a search result.`),
   description: z.string().trim().min(1, "Enter a description.").max(8000),
   metaTitle: z.string().trim().max(200).optional().nullable(),
   metaDescription: z.string().trim().max(320).optional().nullable(),

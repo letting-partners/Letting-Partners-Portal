@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { MAX_TITLE_LENGTH } from "@/services/listing-seo";
 import { z } from "zod";
 import { genderEnum } from "@/db/schema";
 import { ForbiddenError, requireAccess } from "@/services/permissions";
@@ -177,7 +178,12 @@ const propertySchema = z.object({
 
   rooms: z.array(roomSchema).optional(),
 
-  title: z.string().trim().max(200).optional().nullable(),
+  title: z
+    .string()
+    .trim()
+    .max(MAX_TITLE_LENGTH, `Keep the title to ${MAX_TITLE_LENGTH} characters so it fits a search result.`)
+    .optional()
+    .nullable(),
   description: z.string().trim().max(8000).optional().nullable(),
   imageAssetIds: z.array(z.string().uuid()).optional(),
 

@@ -95,11 +95,13 @@ export default function ListingEditor({
           id="listing-title"
           className="input"
           value={title}
-          maxLength={200}
+          maxLength={60}
           onChange={(event) => setTitle(event.target.value)}
-          placeholder="Bright furnished double room in a shared house, Rusholme"
+          placeholder="Bright double room in a shared house, Ilford"
         />
-        <span className="field-hint">{title.length}/200 characters</span>
+        <span className="field-hint" data-warn={title.length > 60 || undefined}>
+          {title.length}/60 characters. This becomes the search result title, so it has to fit.
+        </span>
       </div>
 
       <div className="field">

@@ -9,6 +9,7 @@ import {
   users,
 } from "@/db/schema";
 import { monthlyToWeeklyPence, penceToPounds } from "@/lib/money";
+import { deriveListingSeo } from "./listing-seo";
 import { getOutcode } from "@/lib/postcode";
 
 /**
@@ -65,8 +66,10 @@ export type WebsitePropertyDetail = WebsiteProperty & {
   images: { url: string; alt: string | null }[];
   rooms: WebsiteRoom[];
   agent: WebsiteAgent | null;
-  metaTitle: string | null;
-  metaDescription: string | null;
+  /** Always populated: derived from the listing when nobody wrote them. */
+  metaTitle: string;
+  metaDescription: string;
+  keywords: string[];
   publishedAt: string | null;
 };
 
@@ -365,8 +368,17 @@ export async function getWebsiteProperty(
           bio: row.agentBio,
         }
       : null,
-    metaTitle: property.metaTitle,
-    metaDescription: property.metaDescription,
+    ...deriveListingSeo({
+      title: property.title,
+      description: property.description,
+      typeLabel: describeType(property),
+      area: property.area,
+      town: property.town,
+      outcode: property.outcode,
+      bedrooms: property.numberOfRooms,
+      metaTitle: property.metaTitle,
+      metaDescription: property.metaDescription,
+    }),
     publishedAt: property.publishedAt?.toISOString() ?? null,
   };
 }

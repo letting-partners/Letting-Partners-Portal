@@ -1570,10 +1570,13 @@ function StepPublicDetails({ state, update }: StepProps) {
               id="public-title"
               className="input"
               value={state.title}
-              maxLength={200}
+              maxLength={60}
               onChange={(event) => update({ title: event.target.value })}
-              placeholder="Bright furnished double room in a shared house, Rusholme"
+              placeholder="Bright double room in a shared house, Ilford"
             />
+            <span className="field-hint">
+              {state.title.length}/60 characters. This becomes the search result title.
+            </span>
           </div>
 
           <div className="field">

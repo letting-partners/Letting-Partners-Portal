@@ -20,6 +20,7 @@ import { formatPostcode, getOutcode, parsePostcode } from "@/lib/postcode";
 import { buildPropertySlug, disambiguateSlug } from "@/lib/slug";
 import { formatReference, REFERENCE_PREFIX } from "@/lib/reference";
 import { ENTITY, recordActivity, recordAudit } from "./audit";
+import { MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH, truncateAtWord } from "./listing-seo";
 import { notifyMany } from "./notifications";
 import { loadPeopleMap } from "./landlords";
 import { resolveAgreedCommissionPence } from "./commission-engine";
@@ -594,17 +595,25 @@ export async function savePublicDetails(
   });
 }
 
+/*
+ * Both are cut at the length a search result shows, at a word boundary. A
+ * title that ends mid-word looks like a fault rather than a listing.
+ */
 function defaultMetaTitle(
   property: { propertyType: string; category: string | null; town: string | null; outcode: string },
   title: string,
 ): string {
   const place = property.town ? `${property.town} ${property.outcode}` : property.outcode;
-  return `${title.trim()} | ${place}`.slice(0, 200);
+  const withPlace = `${title.trim()} | ${place}`;
+
+  // The place is only worth adding if the whole thing still fits.
+  return withPlace.length <= MAX_TITLE_LENGTH
+    ? withPlace
+    : truncateAtWord(title, MAX_TITLE_LENGTH);
 }
 
 function defaultMetaDescription(description: string): string {
-  const clean = description.trim().replace(/\s+/g, " ");
-  return clean.length <= 155 ? clean : `${clean.slice(0, 152)}...`;
+  return truncateAtWord(description, MAX_DESCRIPTION_LENGTH, true);
 }
 
 /* ------------------------------------------------------------- publish */
