@@ -29,6 +29,15 @@ function formatDuration(seconds: number | null): string {
   return remainder === 0 ? `${minutes}m` : `${minutes}m ${remainder}s`;
 }
 
+/** The advert's host, or the raw value if it will not parse. */
+function adHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
 export default async function CallsPage({
   searchParams,
 }: {
@@ -94,6 +103,7 @@ export default async function CallsPage({
                   <th className="numeric">Duration</th>
                   <th className="numeric">Attempt</th>
                   <th>Outcome</th>
+                  <th>Advert</th>
                   <th>Notes</th>
                 </tr>
               </thead>
@@ -130,8 +140,18 @@ export default async function CallsPage({
                       <StatusBadge status={row.outcome ?? row.status} />
                     </td>
 
+                    <td className="table-secondary truncate" style={{ maxWidth: 180 }}>
+                      {row.adUrl ? (
+                        <a href={row.adUrl} target="_blank" rel="noopener noreferrer">
+                          {adHost(row.adUrl)}
+                        </a>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+
                     <td className="table-secondary truncate" style={{ maxWidth: 240 }}>
-                      {row.notes ?? "-"}
+                      {row.notes ?? row.openingNote ?? "-"}
                     </td>
                   </tr>
                 ))}

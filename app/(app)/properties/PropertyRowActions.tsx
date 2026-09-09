@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Archive, Eye, Globe, GlobeLock, Pencil } from "lucide-react";
+import { Eye, Globe, GlobeLock, Pencil, Trash2 } from "lucide-react";
 import { RowMenu } from "@/components/ui/RowMenu";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
@@ -46,16 +46,10 @@ export default function PropertyRowActions({
           View
         </Link>
 
-        {isDraft && (
-          <Link
-            href={`/properties/${propertyId}?tab=listing`}
-            className="menu-item"
-            role="menuitem"
-          >
-            <Pencil size={15} />
-            Complete details
-          </Link>
-        )}
+        <Link href={`/properties/${propertyId}?tab=listing`} className="menu-item" role="menuitem">
+          <Pencil size={15} />
+          {isDraft ? "Complete details" : "Edit details"}
+        </Link>
 
         {!isPublished && (
           <button
@@ -94,8 +88,8 @@ export default function PropertyRowActions({
           disabled={pending}
           onClick={() => setConfirm("archive")}
         >
-          <Archive size={15} />
-          Archive
+          <Trash2 size={15} />
+          Delete
         </button>
       </RowMenu>
 
@@ -114,10 +108,10 @@ export default function PropertyRowActions({
       <ConfirmDialog
         open={confirm === "archive"}
         onClose={() => setConfirm(null)}
-        onConfirm={() => run(() => archiveAction(propertyId), "Property archived.")}
-        title="Archive this property?"
-        message="It will be hidden from lists and removed from the website. Nothing is deleted - an administrator can restore it, and its calls, deals and sales history are kept."
-        confirmLabel="Archive"
+        onConfirm={() => run(() => archiveAction(propertyId), "Property deleted.")}
+        title="Delete this property?"
+        message="It will be hidden from lists and removed from the website. The record is archived rather than erased, so its calls, deals and sales history stay intact and an administrator can restore it."
+        confirmLabel="Delete"
         danger
         pending={pending}
       />

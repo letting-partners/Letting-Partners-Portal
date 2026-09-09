@@ -47,7 +47,12 @@ function agentFor(context: AccessContext): string | null {
 export async function startCall(
   rawPhone: string,
   context: AccessContext,
-  options: { followUpId?: string | null; override?: boolean } = {},
+  options: {
+    followUpId?: string | null;
+    override?: boolean;
+    adUrl?: string | null;
+    openingNote?: string | null;
+  } = {},
 ): Promise<{ callId: string; normalizedPhone: string; attemptNumber: number }> {
   const normalization = normalizeUKPhoneDetailed(rawPhone);
   if (!normalization.ok) throw new CallError(PHONE_ERROR_MESSAGES[normalization.reason]);
@@ -115,6 +120,8 @@ export async function startCall(
         agentId: agentFor(context),
         status: "IN_PROGRESS",
         followUpId: options.followUpId ?? null,
+        adUrl: options.adUrl?.trim() || null,
+        openingNote: options.openingNote?.trim() || null,
       })
       .returning({ id: calls.id });
 

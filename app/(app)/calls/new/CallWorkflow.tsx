@@ -65,6 +65,8 @@ export default function CallWorkflow({
 
   const [stage, setStage] = useState<Stage>("LOOKUP");
   const [phone, setPhone] = useState(initialPhone ?? "");
+  const [adUrl, setAdUrl] = useState("");
+  const [openingNote, setOpeningNote] = useState("");
   const [lookup, setLookup] = useState<PhoneLookupResult | null>(null);
   const [callId, setCallId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +96,18 @@ export default function CallWorkflow({
 
   function beginCall(override = false) {
     setError(null);
+
+    // Checked here as well as on the server, so the caller is told before the
+    // round trip rather than after it.
+    if (!adUrl.trim()) {
+      setError("Add the advert link this number came from.");
+      return;
+    }
+    if (!openingNote.trim()) {
+      setError("Add a note about this call.");
+      return;
+    }
+
     startTransition(async () => {
       const result = await startCallAction({
         phone,
@@ -101,6 +115,8 @@ export default function CallWorkflow({
           initialFollowUpId ??
           (lookup?.kind === "FOLLOW_UP_LOCKED" && lookup.isOwner ? lookup.followUp.id : null),
         override,
+        adUrl,
+        openingNote,
       });
 
       if (!result.ok) {
@@ -166,12 +182,52 @@ export default function CallWorkflow({
       )}
 
       {stage === "RESULT" && lookup && (
-        <LookupResult
-          result={lookup}
-          pending={pending}
-          onStartCall={beginCall}
-          onBack={reset}
-        />
+        <>
+          {/* Asked before the call, not after: which advert produced the lead
+              is knowable now and guesswork later. */}
+          <div className="card">
+            <div className="card-body form-grid">
+              <div className="field">
+                <label className="field-label" htmlFor="call-ad-url">
+                  Advert link<span className="required">*</span>
+                </label>
+                <input
+                  id="call-ad-url"
+                  className="input"
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://www.spareroom.co.uk/..."
+                  value={adUrl}
+                  onChange={(event) => setAdUrl(event.target.value)}
+                />
+                <span className="field-hint">
+                  The listing this number was advertised on.
+                </span>
+              </div>
+
+              <div className="field">
+                <label className="field-label" htmlFor="call-opening-note">
+                  Note<span className="required">*</span>
+                </label>
+                <textarea
+                  id="call-opening-note"
+                  className="input"
+                  rows={2}
+                  placeholder="What the advert says, or why you are calling."
+                  value={openingNote}
+                  onChange={(event) => setOpeningNote(event.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <LookupResult
+            result={lookup}
+            pending={pending}
+            onStartCall={beginCall}
+            onBack={reset}
+          />
+        </>
       )}
 
       {stage === "IN_CALL" && (

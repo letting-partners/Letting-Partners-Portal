@@ -430,6 +430,8 @@ export async function listCalls(context: AccessContext, options: CallListOptions
         status: calls.status,
         outcome: calls.outcome,
         notes: calls.notes,
+        adUrl: calls.adUrl,
+        openingNote: calls.openingNote,
         calledById: calls.calledById,
         agentId: calls.agentId,
         landlordId: calls.landlordId,

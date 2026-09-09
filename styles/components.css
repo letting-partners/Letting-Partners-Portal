@@ -813,6 +813,15 @@
   box-shadow: var(--shadow-lg);
 }
 
+/*
+ * Portalled to the body, so it is positioned against the viewport and must sit
+ * above the sticky topbar and sidebar.
+ */
+.menu--floating {
+  position: fixed;
+  z-index: 200;
+}
+
 .menu-item {
   display: flex;
   align-items: center;

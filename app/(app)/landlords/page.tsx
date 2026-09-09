@@ -14,6 +14,8 @@ import { formatDate, formatRelative } from "@/lib/dates";
 import { displayPhone } from "@/lib/phone";
 import { listLandlords } from "@/services/landlords";
 import { listAssignableAgents } from "@/services/properties";
+import { canEditLandlord } from "@/services/permissions";
+import LandlordRowActions from "./LandlordRowActions";
 
 export const metadata: Metadata = { title: "Landlords" };
 
@@ -100,6 +102,9 @@ export default async function LandlordsPage({
                   <th>Agent</th>
                   <th>Last contact</th>
                   <th>Created</th>
+                  <th className="table-actions">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -125,6 +130,23 @@ export default async function LandlordsPage({
                       {row.lastContactAt ? formatRelative(row.lastContactAt) : "-"}
                     </td>
                     <td className="table-secondary">{formatDate(row.createdAt)}</td>
+                    <td className="table-actions">
+                      <LandlordRowActions
+                        landlord={{
+                          id: row.id,
+                          name: row.name,
+                          email: row.email,
+                          alternatePhone: row.alternatePhone ?? null,
+                          gender: row.gender ?? null,
+                          propertyCount: row.propertyCount,
+                        }}
+                        canEdit={canEditLandlord(context, {
+                          originatingFronterId: row.originatingFronterId,
+                          assignedAgentId: row.assignedAgentId,
+                        })}
+                        isAdmin={context.isAdmin}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAccess } from "@/services/permissions";
+import { ForbiddenError, requireAccess } from "@/services/permissions";
 import { lookupPhone, type PhoneLookupResult } from "@/services/phone-lookup";
 import {
   CallError,
@@ -26,6 +26,21 @@ export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string
 
 function fail(error: unknown): { ok: false; error: string } {
   if (error instanceof CallError) return { ok: false, error: error.message };
+  if (error instanceof ForbiddenError) {
+    return { ok: false, error: "You do not have permission to do that." };
+  }
+  /*
+   * Validation messages are written for the caller, so show them rather than
+   * burying a wrong advert link under "something went wrong".
+   *
+   * Matched by shape rather than `instanceof`: a server action can be handed a
+   * ZodError built against a different copy of the module, and the identity
+   * check then quietly fails.
+   */
+  const issues = (error as { issues?: { message?: string }[] })?.issues;
+  if (error instanceof Error && error.name === "ZodError" && Array.isArray(issues)) {
+    return { ok: false, error: issues[0]?.message ?? "Check the details and try again." };
+  }
   console.error("Call workflow action failed:", error);
   return { ok: false, error: "Something went wrong. Please try again." };
 }
@@ -48,12 +63,27 @@ const startSchema = z.object({
   phone: z.string().trim().min(1, "Enter a phone number."),
   followUpId: z.string().uuid().nullable().optional(),
   override: z.boolean().optional(),
+
+  /*
+   * Where the lead came from and what the caller knows going in. Both are
+   * required so the advert that produced a lead is recorded while it is still
+   * known - after the call nobody can reconstruct it.
+   */
+  adUrl: z
+    .string()
+    .trim()
+    .min(1, "Add the advert link this number came from.")
+    .max(2000)
+    .refine((value) => /^https?:\/\/\S+$/i.test(value), "Enter a full link, starting with https://"),
+  openingNote: z.string().trim().min(1, "Add a note about this call.").max(2000),
 });
 
 export async function startCallAction(input: {
   phone: string;
   followUpId?: string | null;
   override?: boolean;
+  adUrl?: string | null;
+  openingNote?: string | null;
 }): Promise<ActionResult<{ callId: string; normalizedPhone: string; attemptNumber: number }>> {
   try {
     const parsed = startSchema.parse(input);
@@ -61,6 +91,8 @@ export async function startCallAction(input: {
     const result = await startCall(parsed.phone, context, {
       followUpId: parsed.followUpId ?? null,
       override: parsed.override ?? false,
+      adUrl: parsed.adUrl,
+      openingNote: parsed.openingNote,
     });
     revalidatePath("/calls");
     return { ok: true, data: result };

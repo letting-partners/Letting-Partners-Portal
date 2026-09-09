@@ -253,6 +253,8 @@ export async function listLandlords(context: AccessContext, filters: LandlordLis
         id: landlords.id,
         name: landlords.name,
         email: landlords.email,
+        alternatePhone: landlords.alternatePhone,
+        gender: landlords.gender,
         originalPhone: landlords.originalPhone,
         normalizedPhone: landlords.normalizedPhone,
         createdAt: landlords.createdAt,

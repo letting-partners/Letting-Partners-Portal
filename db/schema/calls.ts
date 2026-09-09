@@ -44,6 +44,15 @@ export const calls = pgTable(
     outcome: callOutcomeEnum("outcome"),
     notes: text("notes"),
 
+    /**
+     * The advert the number came from, captured when the call starts. Knowing
+     * which listing produced a lead is what makes advertising spend
+     * measurable, and it cannot be reconstructed afterwards.
+     */
+    adUrl: text("ad_url"),
+    /** What the caller knew before dialling, also captured at the start. */
+    openingNote: text("opening_note"),
+
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     durationSeconds: integer("duration_seconds"),
