@@ -62,6 +62,8 @@ export async function startCustomerConversation(input: {
   email?: string | null;
   phone?: string | null;
   message: string;
+  /** Names the enquiry when it did not come from a property page. */
+  subject?: string | null;
 }): Promise<{ conversationId: string; visitorToken: string }> {
   if (!input.message.trim()) throw new ChatError("Write a message before sending.");
 
@@ -117,6 +119,8 @@ export async function startCustomerConversation(input: {
         subject = property.title ?? property.reference;
       }
     }
+
+    if (!subject && input.subject?.trim()) subject = input.subject.trim().slice(0, 200);
 
     const visitorToken = input.visitorToken || generateVisitorToken();
 
