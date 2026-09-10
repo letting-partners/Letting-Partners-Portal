@@ -232,7 +232,7 @@ async function PropertiesTable({
                       fronters={fronters}
                       assignedAgentId={row.assignedAgentId}
                       originatingFronterId={row.originatingFronterId}
-                      label={row.title ?? row.reference}
+                      label={row.reference}
                     />
                   </td>
                 </tr>

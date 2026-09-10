@@ -14,6 +14,7 @@ import { displayPhone, toE164 } from "@/lib/phone";
 import { getLandlord } from "@/services/landlords";
 import { listActivity, listNotes } from "@/services/notes";
 import { loadPeopleMap } from "@/services/landlords";
+import { StartCallButton } from "@/components/calls/StartCall";
 
 export async function generateMetadata({
   params,
@@ -61,12 +62,9 @@ export default async function LandlordDetailPage({
               <PhoneCall size={15} />
               Call
             </a>
-            <Link
-              href={`/calls/new?phone=${encodeURIComponent(landlord.normalizedPhone)}`}
-              className="btn btn--secondary"
-            >
+            <StartCallButton phone={landlord.normalizedPhone} className="btn btn--secondary">
               Log a call
-            </Link>
+            </StartCallButton>
             <Link href={`/properties/new?landlordId=${landlord.id}`} className="btn btn--primary">
               <Plus size={15} />
               Add property

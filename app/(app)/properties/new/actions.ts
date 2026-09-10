@@ -5,7 +5,13 @@ import { MAX_TITLE_LENGTH } from "@/services/listing-seo";
 import { z } from "zod";
 import { genderEnum } from "@/db/schema";
 import { ForbiddenError, requireAccess } from "@/services/permissions";
-import { createLandlord, LandlordError, listLandlords } from "@/services/landlords";
+import {
+  createLandlord,
+  findLandlordSummary,
+  LandlordError,
+  listLandlords,
+  type LandlordSummary,
+} from "@/services/landlords";
 import {
   createProperty,
   findDuplicateCandidates,
@@ -46,6 +52,24 @@ const landlordSchema = z.object({
   gender: z.enum(genderEnum.enumValues),
   dealerType: z.enum(["LANDLORD", "AGENT"]).optional(),
 });
+
+/**
+ * Whether the number onboarding is about to use already belongs to a landlord.
+ *
+ * The page equivalent of this happens server-side before the wizard renders;
+ * in the popup there is no render to hang it on, so it is asked for directly.
+ */
+export async function findLandlordForOnboardingAction(input: {
+  landlordId?: string | null;
+  phone?: string | null;
+}): Promise<ActionResult<LandlordSummary | null>> {
+  try {
+    await requireAccess();
+    return { ok: true, data: await findLandlordSummary(input) };
+  } catch (error) {
+    return fail(error);
+  }
+}
 
 export async function createLandlordAction(input: {
   name: string;

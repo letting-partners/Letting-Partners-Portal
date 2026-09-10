@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { pageAccess } from "@/lib/auth/page-guard";
-import Link from "next/link";
-import { CalendarClock, PhoneCall } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Person } from "@/components/ui/Avatar";
@@ -10,6 +9,7 @@ import { formatDateTime, followUpTimeState } from "@/lib/dates";
 import { displayPhone } from "@/lib/phone";
 import { listFollowUps, type FollowUpFilter } from "@/services/follow-ups";
 import FollowUpRowActions from "./FollowUpRowActions";
+import { StartCallButton } from "@/components/calls/StartCall";
 
 export const metadata: Metadata = { title: "Follow ups" };
 
@@ -44,10 +44,7 @@ export default async function FollowUpsPage({
         title="Follow ups"
         subtitle="A scheduled follow-up locks the number to whoever created it until it is completed or cancelled."
         actions={
-          <Link href="/calls/new" className="btn btn--primary">
-            <PhoneCall size={15} />
-            Start call
-          </Link>
+          <StartCallButton />
         }
       />
 
@@ -71,9 +68,7 @@ export default async function FollowUpsPage({
             title="No follow-ups due"
             message="Numbers you schedule for later will appear here, with the overdue ones at the top."
             action={
-              <Link href="/calls/new" className="btn btn--primary btn--sm">
-                Start a call
-              </Link>
+              <StartCallButton className="btn btn--primary btn--sm" />
             }
           />
         ) : (

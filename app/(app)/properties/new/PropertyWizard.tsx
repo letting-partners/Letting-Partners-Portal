@@ -182,11 +182,14 @@ export default function PropertyWizard({
   phone,
   display,
   existingLandlord,
+  onDone,
 }: {
   callId?: string;
   phone?: string;
   display?: string;
   existingLandlord?: { id: string; name: string; phone: string } | null;
+  /** Set when the wizard runs in the start-call popup, so it can be dismissed. */
+  onDone?: () => void;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -489,6 +492,7 @@ export default function PropertyWizard({
           ? `${result.data.reference} saved as a draft.`
           : `${result.data.reference} is ready to publish.`,
       );
+      onDone?.();
       router.push(`/properties/${result.data.propertyId}`);
     });
   }

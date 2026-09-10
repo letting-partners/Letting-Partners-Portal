@@ -25,6 +25,7 @@ import {
   getRecentSales,
 } from "@/services/dashboard";
 import { getAccessContext } from "@/services/permissions";
+import { StartCallButton } from "@/components/calls/StartCall";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -57,10 +58,7 @@ export default async function DashboardPage() {
           month: "long",
         }).format(new Date())}`}
         actions={
-          <Link href="/calls/new" className="btn btn--primary">
-            <PhoneCall size={15} />
-            Start call
-          </Link>
+          <StartCallButton />
         }
       />
 
@@ -186,12 +184,12 @@ export default async function DashboardPage() {
                               {item.notes}
                             </td>
                             <td className="table-actions">
-                              <Link
-                                href={`/calls/new?phone=${encodeURIComponent(item.normalizedPhone)}`}
+                              <StartCallButton
+                                phone={item.normalizedPhone}
                                 className="btn btn--secondary btn--sm"
                               >
                                 Call
-                              </Link>
+                              </StartCallButton>
                             </td>
                           </tr>
                         );
@@ -261,9 +259,7 @@ export default async function DashboardPage() {
                   title="No calls yet"
                   message="Look a number up to start your first call."
                   action={
-                    <Link href="/calls/new" className="btn btn--primary btn--sm">
-                      Start call
-                    </Link>
+                    <StartCallButton className="btn btn--primary btn--sm" />
                   }
                 />
               ) : (

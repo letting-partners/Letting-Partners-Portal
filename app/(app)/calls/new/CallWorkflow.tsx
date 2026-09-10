@@ -38,6 +38,10 @@ import {
  *
  * The lookup result drives what the user is allowed to do next, but every
  * action is re-authorised on the server.
+ *
+ * It runs inside the start-call popup, so an interested call hands straight
+ * over to property onboarding without a page change: the caller keeps the
+ * landlord on the line while the details go in.
  */
 
 type Stage = "LOOKUP" | "RESULT" | "IN_CALL" | "NOT_INTERESTED" | "FOLLOW_UP";
@@ -55,9 +59,15 @@ const NOT_INTERESTED_REASONS = [
 export default function CallWorkflow({
   initialPhone,
   initialFollowUpId,
+  onInterested,
+  onDone,
 }: {
   initialPhone?: string;
   initialFollowUpId?: string;
+  /** Hands the call over to onboarding, in place of navigating there. */
+  onInterested?: (handover: { callId: string; phone: string; display: string }) => void;
+  /** Called once an outcome is recorded and there is nothing left to do. */
+  onDone?: () => void;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -133,7 +143,13 @@ export default function CallWorkflow({
         setError(result.error);
         return;
       }
-      router.push(result.data.nextHref);
+      if (onInterested) {
+        onInterested(result.data);
+        return;
+      }
+
+      const params = new URLSearchParams(result.data);
+      router.push(`/properties/new?${params.toString()}`);
     });
   }
 
@@ -146,8 +162,18 @@ export default function CallWorkflow({
         return;
       }
       toast.success("Logged as no answer.");
-      reset();
+      finish();
     });
+  }
+
+  /** After a recorded outcome: close the popup, or clear down for the next number. */
+  function finish() {
+    router.refresh();
+    if (onDone) {
+      onDone();
+      return;
+    }
+    reset();
   }
 
   function reset() {
@@ -242,8 +268,7 @@ export default function CallWorkflow({
           onCancel={() => setStage("IN_CALL")}
           onSaved={() => {
             toast.success("Saved to Not interested.");
-            reset();
-            router.refresh();
+            finish();
           }}
           onError={setError}
         />
@@ -255,8 +280,7 @@ export default function CallWorkflow({
           onCancel={() => setStage("IN_CALL")}
           onSaved={() => {
             toast.success("Follow-up scheduled and locked to you.");
-            reset();
-            router.refresh();
+            finish();
           }}
           onError={setError}
         />

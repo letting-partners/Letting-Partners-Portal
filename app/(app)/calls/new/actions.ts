@@ -207,19 +207,18 @@ export async function noAnswerAction(
  */
 export async function interestedAction(
   callId: string,
-): Promise<ActionResult<{ nextHref: string }>> {
+): Promise<ActionResult<{ callId: string; phone: string; display: string }>> {
   try {
     const context = await requireAccess();
     const { normalizedPhone, originalPhone } = await markCallInterested(callId, context);
     revalidatePath("/calls");
 
-    const params = new URLSearchParams({
-      callId,
-      phone: normalizedPhone,
-      display: originalPhone,
-    });
-
-    return { ok: true, data: { nextHref: `/properties/new?${params.toString()}` } };
+    // What onboarding needs to carry on, rather than a URL: the call continues
+    // in the same popup, so nothing here has to survive a navigation.
+    return {
+      ok: true,
+      data: { callId, phone: normalizedPhone, display: originalPhone },
+    };
   } catch (error) {
     return fail(error);
   }

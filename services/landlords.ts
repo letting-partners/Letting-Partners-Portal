@@ -23,7 +23,7 @@ import {
   type genderEnum,
   type contactSourceEnum,
 } from "@/db/schema";
-import { normalizeUKPhoneDetailed, PHONE_ERROR_MESSAGES } from "@/lib/phone";
+import { normalizeUKPhone, normalizeUKPhoneDetailed, PHONE_ERROR_MESSAGES } from "@/lib/phone";
 import { ENTITY, recordActivity, recordAudit } from "./audit";
 import { isUniqueViolation } from "./calls";
 import {
@@ -217,6 +217,40 @@ export const DEFAULT_PAGE_SIZE = 25;
  * Server-side pagination and filtering. Large tables are never shipped whole
  * to the browser.
  */
+export type LandlordSummary = { id: string; name: string; phone: string };
+
+/**
+ * The landlord behind an id or a phone number, or null.
+ *
+ * Onboarding uses it to tell whether the number on the call already belongs to
+ * somebody, so an existing landlord is reused instead of duplicated. No
+ * visibility filter: a number is either taken or it is not, and hiding that
+ * from an agent would let them create the duplicate the phone index then
+ * refuses.
+ */
+export async function findLandlordSummary(input: {
+  landlordId?: string | null;
+  phone?: string | null;
+}): Promise<LandlordSummary | null> {
+  const where = input.landlordId
+    ? eq(landlords.id, input.landlordId)
+    : (() => {
+        const normalized = normalizeUKPhone(input.phone ?? undefined);
+        return normalized ? eq(landlords.normalizedPhone, normalized) : null;
+      })();
+
+  if (!where) return null;
+
+  const rows = await db
+    .select({ id: landlords.id, name: landlords.name, originalPhone: landlords.originalPhone })
+    .from(landlords)
+    .where(and(where, isNull(landlords.deletedAt)))
+    .limit(1);
+
+  const row = rows[0];
+  return row ? { id: row.id, name: row.name, phone: row.originalPhone } : null;
+}
+
 export async function listLandlords(context: AccessContext, filters: LandlordListFilters = {}) {
   const page = Math.max(filters.page ?? 1, 1);
   const pageSize = Math.min(Math.max(filters.pageSize ?? DEFAULT_PAGE_SIZE, 1), 100);

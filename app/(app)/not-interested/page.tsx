@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { pageAccess } from "@/lib/auth/page-guard";
-import Link from "next/link";
 import { PhoneOff } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -9,6 +8,7 @@ import { ClearFilters, FilterSelect, Pagination, SearchInput } from "@/component
 import { formatDate } from "@/lib/dates";
 import { displayPhone } from "@/lib/phone";
 import { listNotInterested } from "@/services/follow-ups";
+import { StartCallButton } from "@/components/calls/StartCall";
 
 export const metadata: Metadata = { title: "Not interested" };
 
@@ -106,12 +106,12 @@ export default async function NotInterestedPage({
                     <td className="table-secondary">{formatDate(row.createdAt)}</td>
 
                     <td className="table-actions">
-                      <Link
-                        href={`/calls/new?phone=${encodeURIComponent(row.normalizedPhone)}`}
+                      <StartCallButton
+                        phone={row.normalizedPhone}
                         className="btn btn--secondary btn--sm"
                       >
                         Retry
-                      </Link>
+                      </StartCallButton>
                     </td>
                   </tr>
                 ))}

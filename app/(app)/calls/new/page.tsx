@@ -1,31 +1,23 @@
-import type { Metadata } from "next";
-import { pageAccess } from "@/lib/auth/page-guard";
-import { PageHeader } from "@/components/ui/layout";
-import CallWorkflow from "./CallWorkflow";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Start call" };
-
+/**
+ * The old start-call address.
+ *
+ * Calls are now made in a popup over whatever you were looking at, so this
+ * route no longer has a page of its own. Anything still pointing here - a
+ * bookmark, an old link in a notification - lands on the call list with the
+ * popup already open, carrying the number it was given.
+ */
 export default async function NewCallPage({
   searchParams,
 }: {
   searchParams: Promise<{ phone?: string; followUpId?: string }>;
 }) {
-  await pageAccess();
   const params = await searchParams;
 
-  return (
-    <>
-      <PageHeader
-        title="Start call"
-        subtitle="Look the number up before dialling so ownership and history are clear."
-        breadcrumbs={[{ label: "Calls", href: "/calls" }, { label: "Start call" }]}
-      />
+  const query = new URLSearchParams({ call: "1" });
+  if (params.phone) query.set("phone", params.phone);
+  if (params.followUpId) query.set("followUpId", params.followUpId);
 
-      <div className="card" style={{ maxWidth: 640 }}>
-        <div className="card-body">
-          <CallWorkflow initialPhone={params.phone} initialFollowUpId={params.followUpId} />
-        </div>
-      </div>
-    </>
-  );
+  redirect(`/calls?${query.toString()}`);
 }

@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
 import { pageAccess } from "@/lib/auth/page-guard";
-import { and, eq, isNull } from "drizzle-orm";
-import { db } from "@/db";
-import { landlords } from "@/db/schema";
 import { PageHeader } from "@/components/ui/layout";
-import { normalizeUKPhone } from "@/lib/phone";
+import { findLandlordSummary } from "@/services/landlords";
 import PropertyWizard from "./PropertyWizard";
 
 export const metadata: Metadata = { title: "Add property" };
 
 /**
- * Entry point for onboarding. Arrives either from an interested call (with the
- * phone number in the query) or directly from Properties.
+ * Onboarding as a page.
+ *
+ * A call that goes well continues into the wizard inside the start-call popup,
+ * so this route is the way in from Properties - adding a landlord and property
+ * that did not come from a call being made right now.
  */
 export default async function NewPropertyPage({
   searchParams,
@@ -28,7 +28,10 @@ export default async function NewPropertyPage({
 
   // If the number already belongs to a landlord, skip straight to the property
   // steps rather than inviting a duplicate.
-  const existingLandlord = await findLandlord(params.landlordId, params.phone);
+  const existingLandlord = await findLandlordSummary({
+    landlordId: params.landlordId,
+    phone: params.phone,
+  });
 
   return (
     <>
@@ -48,29 +51,4 @@ export default async function NewPropertyPage({
       </div>
     </>
   );
-}
-
-async function findLandlord(landlordId?: string, phone?: string) {
-  if (landlordId) {
-    const rows = await db
-      .select({ id: landlords.id, name: landlords.name, originalPhone: landlords.originalPhone })
-      .from(landlords)
-      .where(and(eq(landlords.id, landlordId), isNull(landlords.deletedAt)))
-      .limit(1);
-
-    const row = rows[0];
-    return row ? { id: row.id, name: row.name, phone: row.originalPhone } : null;
-  }
-
-  const normalized = normalizeUKPhone(phone);
-  if (!normalized) return null;
-
-  const rows = await db
-    .select({ id: landlords.id, name: landlords.name, originalPhone: landlords.originalPhone })
-    .from(landlords)
-    .where(and(eq(landlords.normalizedPhone, normalized), isNull(landlords.deletedAt)))
-    .limit(1);
-
-  const row = rows[0];
-  return row ? { id: row.id, name: row.name, phone: row.originalPhone } : null;
 }

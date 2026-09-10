@@ -20,6 +20,7 @@ export function Modal({
   description,
   footer,
   wide = false,
+  className,
   children,
 }: {
   open: boolean;
@@ -28,6 +29,8 @@ export function Modal({
   description?: string;
   footer?: React.ReactNode;
   wide?: boolean;
+  /** Extra class on the dialog, for a width a particular dialog needs. */
+  className?: string;
   children: React.ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -89,7 +92,9 @@ export function Modal({
     >
       <div
         ref={dialogRef}
-        className={wide ? "modal modal--wide" : "modal"}
+        className={["modal", wide ? "modal--wide" : "", className ?? ""]
+          .filter(Boolean)
+          .join(" ")}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

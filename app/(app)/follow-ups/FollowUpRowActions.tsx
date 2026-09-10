@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarClock, Check, PhoneCall, X } from "lucide-react";
 import { RowMenu } from "@/components/ui/RowMenu";
+import { useStartCall } from "@/components/calls/StartCall";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -31,6 +32,7 @@ export default function FollowUpRowActions({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const startCall = useStartCall();
   const [pending, startTransition] = useTransition();
   const [dialog, setDialog] = useState<"reschedule" | "cancel" | null>(null);
   const [newDueAt, setNewDueAt] = useState(toLocalInput(dueAt));
@@ -55,14 +57,15 @@ export default function FollowUpRowActions({
     <>
       <RowMenu label="Follow-up actions">
         {canRetry && isScheduled && (
-          <Link
-            href={`/calls/new?phone=${encodeURIComponent(normalizedPhone)}&followUpId=${followUpId}`}
+          <button
+            type="button"
             className="menu-item"
             role="menuitem"
+            onClick={() => startCall.open({ phone: normalizedPhone, followUpId })}
           >
             <PhoneCall size={15} />
             {isOwner ? "Continue follow up" : "Override and call"}
-          </Link>
+          </button>
         )}
 
         {isScheduled && (

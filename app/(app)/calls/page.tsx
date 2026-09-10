@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { pageAccess } from "@/lib/auth/page-guard";
-import Link from "next/link";
 import { PhoneCall } from "lucide-react";
+import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Person } from "@/components/ui/Avatar";
@@ -9,6 +9,7 @@ import { ClearFilters, FilterSelect, Pagination, SearchInput } from "@/component
 import { formatDateTime } from "@/lib/dates";
 import { displayPhone } from "@/lib/phone";
 import { listCalls } from "@/services/follow-ups";
+import { StartCallButton, StartCallOnArrival } from "@/components/calls/StartCall";
 
 export const metadata: Metadata = { title: "Call log" };
 
@@ -54,14 +55,15 @@ export default async function CallsPage({
 
   return (
     <>
+      {params.call && (
+        <StartCallOnArrival phone={params.phone} followUpId={params.followUpId} />
+      )}
+
       <PageHeader
         title="Call log"
         subtitle="Every attempt on every number, kept permanently."
         actions={
-          <Link href="/calls/new" className="btn btn--primary">
-            <PhoneCall size={15} />
-            Start call
-          </Link>
+          <StartCallButton />
         }
       />
 
@@ -84,11 +86,7 @@ export default async function CallsPage({
             icon={<PhoneCall size={18} />}
             title="No calls yet"
             message="Look a number up to start your first call. Every attempt is logged here."
-            action={
-              <Link href="/calls/new" className="btn btn--primary btn--sm">
-                Start call
-              </Link>
-            }
+            action={<StartCallButton className="btn btn--primary btn--sm" />}
           />
         ) : (
           <div className="table-wrap">

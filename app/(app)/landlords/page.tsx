@@ -16,6 +16,7 @@ import { listLandlords } from "@/services/landlords";
 import { listAssignableAgents, listAssignableFronters } from "@/services/properties";
 import { canEditLandlord } from "@/services/permissions";
 import LandlordRowActions from "./LandlordRowActions";
+import { StartCallButton } from "@/components/calls/StartCall";
 
 export const metadata: Metadata = { title: "Landlords" };
 
@@ -85,9 +86,7 @@ export default async function LandlordsPage({
             title="No landlords yet"
             message="Landlords are created from the call workflow when a call goes well, or added directly."
             action={
-              <Link href="/calls/new" className="btn btn--primary btn--sm">
-                Start a call
-              </Link>
+              <StartCallButton className="btn btn--primary btn--sm" />
             }
           />
         ) : (
