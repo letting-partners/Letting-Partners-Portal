@@ -2,10 +2,12 @@ import "server-only";
 import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { db, type Transaction } from "@/db";
 import {
+  activities,
   calls,
   followUps,
   landlords,
   notInterestedRecords,
+  properties,
   users,
   type notInterestedReasonEnum,
   type priorityEnum,
@@ -13,11 +15,15 @@ import {
 import { normalizeUKPhoneDetailed, PHONE_ERROR_MESSAGES } from "@/lib/phone";
 import { ENTITY, recordActivity, recordAudit } from "./audit";
 import { lookupPhone } from "./phone-lookup";
-import type { AccessContext } from "./permissions";
+import { ForbiddenError, type AccessContext } from "./permissions";
 
 /**
- * Call lifecycle writes. Nothing here ever deletes or rewrites history: a
- * retry always adds a new attempt linked to everything that came before.
+ * Call lifecycle writes. A retry never rewrites an earlier attempt: it adds a
+ * new one linked to everything that came before, so the contact history for a
+ * number reads in order.
+ *
+ * The one exception is `deleteCall`, an administrator removing an attempt that
+ * should not be in the log at all - a mis-dial, a test, a number typed wrong.
  */
 
 export type NotInterestedReason = (typeof notInterestedReasonEnum.enumValues)[number];
@@ -310,6 +316,70 @@ export async function cancelCall(callId: string, context: AccessContext): Promis
       .update(calls)
       .set({ status: "CANCELLED", outcome: "CANCELLED", endedAt: new Date() })
       .where(eq(calls.id, call.id));
+  });
+}
+
+/**
+ * Remove a call attempt from the log. Administrators only.
+ *
+ * Deleting is refused once the call has produced a property: that record is
+ * real business history, and the call is where it came from. Anything else the
+ * call left behind - a follow-up, a not-interested record - survives with its
+ * link to the call cleared, because those are separate decisions with their
+ * own history and cancelling them is a different act.
+ *
+ * The deletion itself is audited with the number and outcome, so removing a
+ * call from the log does not remove the fact that somebody removed it. It is
+ * filed under ARCHIVE, the audit trail's word for a record taken out of use.
+ */
+export async function deleteCall(callId: string, context: AccessContext): Promise<void> {
+  if (!context.isAdmin) throw new ForbiddenError();
+
+  await db.transaction(async (tx: Transaction) => {
+    const rows = await tx.select().from(calls).where(eq(calls.id, callId)).limit(1);
+    const call = rows[0];
+    if (!call) throw new CallError("That call is no longer in the log.");
+
+    const [produced] = await tx
+      .select({ id: properties.id, reference: properties.reference })
+      .from(properties)
+      .where(and(eq(properties.originatingCallId, callId), isNull(properties.deletedAt)))
+      .limit(1);
+
+    if (produced) {
+      throw new CallError(
+        `This call created ${produced.reference}, so it is part of that property's history. Archive the property instead.`,
+      );
+    }
+
+    await tx.update(followUps).set({ callId: null }).where(eq(followUps.callId, callId));
+    await tx
+      .update(notInterestedRecords)
+      .set({ callId: null })
+      .where(eq(notInterestedRecords.callId, callId));
+
+    await tx
+      .delete(activities)
+      .where(and(eq(activities.entityType, ENTITY.call), eq(activities.entityId, callId)));
+
+    await tx.delete(calls).where(eq(calls.id, callId));
+
+    await recordAudit(
+      {
+        user: context.user,
+        action: "ARCHIVE",
+        entityType: ENTITY.call,
+        entityId: callId,
+        entityLabel: `${call.originalPhone} attempt ${call.attemptNumber}`,
+        before: {
+          normalizedPhone: call.normalizedPhone,
+          outcome: call.outcome,
+          startedAt: call.startedAt,
+          calledById: call.calledById,
+        },
+      },
+      tx,
+    );
   });
 }
 

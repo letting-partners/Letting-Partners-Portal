@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Save } from "lucide-react";
-import { MoneyInput } from "@/components/ui/MoneyInput";
+import { CommissionInput, MoneyInput } from "@/components/ui/MoneyInput";
 import { useToast } from "@/components/ui/Toast";
 import { updateFullPropertyAction } from "../actions";
 
@@ -88,7 +88,7 @@ export default function PropertyRecordEditor({ property }: { property: PropertyR
     availableRooms: property.availableRooms?.toString() ?? "",
     bathrooms: property.bathrooms?.toString() ?? "",
     availabilityDate: property.availabilityDate ?? "",
-    commissionType: property.commissionType ?? "PERCENTAGE",
+
     title: property.title ?? "",
     description: property.description ?? "",
     metaTitle: property.metaTitle ?? "",
@@ -97,8 +97,17 @@ export default function PropertyRecordEditor({ property }: { property: PropertyR
 
   const [rent, setRent] = useState<number | null>(property.rentPerMonthPence);
   const [deposit, setDeposit] = useState<number | null>(property.depositPence);
-  const [commissionValue, setCommissionValue] = useState(
-    property.commissionValue?.toString() ?? "",
+  /*
+   * Held in the unit the database uses - basis points for a percentage, pence
+   * for a fixed fee - and converted for display by CommissionInput, the same
+   * control the wizard uses. Typing the stored number into a plain box meant
+   * an agreed fee of £500 appeared here as 50000.
+   */
+  const [commissionType, setCommissionType] = useState<"PERCENTAGE" | "FIXED">(
+    property.commissionType === "FIXED" ? "FIXED" : "PERCENTAGE",
+  );
+  const [commissionValue, setCommissionValue] = useState<number | null>(
+    property.commissionValue,
   );
   const [features, setFeatures] = useState<Record<string, boolean | null>>(property.features);
 
@@ -131,8 +140,8 @@ export default function PropertyRecordEditor({ property }: { property: PropertyR
 
         rentPerMonthPence: rent,
         depositPence: deposit,
-        commissionType: (form.commissionType || null) as "PERCENTAGE" | "FIXED" | null,
-        commissionValue: commissionValue ? Number(commissionValue) : null,
+        commissionType: commissionValue == null ? null : commissionType,
+        commissionValue,
 
         title: form.title || null,
         description: form.description || null,
@@ -379,38 +388,13 @@ export default function PropertyRecordEditor({ property }: { property: PropertyR
           <MoneyInput label="Rent per month" value={rent} onChange={setRent} />
           <MoneyInput label="Deposit" value={deposit} onChange={setDeposit} />
 
-          <div className="field">
-            <label className="field-label" htmlFor="pe-commission-type">
-              Commission type
-            </label>
-            <select
-              id="pe-commission-type"
-              className="select"
-              value={form.commissionType}
-              onChange={(event) => set("commissionType", event.target.value)}
-            >
-              <option value="PERCENTAGE">Percentage</option>
-              <option value="FIXED">Fixed amount</option>
-            </select>
-          </div>
-
-          <div className="field">
-            <label className="field-label" htmlFor="pe-commission-value">
-              Commission value
-            </label>
-            <input
-              id="pe-commission-value"
-              className="input"
-              inputMode="numeric"
-              value={commissionValue}
-              onChange={(event) => setCommissionValue(digits(event.target.value))}
-            />
-            <span className="field-hint">
-              {form.commissionType === "PERCENTAGE"
-                ? "Basis points: 1000 is 10%."
-                : "Pence: 50000 is £500."}
-            </span>
-          </div>
+          <CommissionInput
+            type={commissionType}
+            onTypeChange={setCommissionType}
+            value={commissionValue}
+            onValueChange={setCommissionValue}
+            monthlyRentPence={rent}
+          />
         </div>
       </div>
 

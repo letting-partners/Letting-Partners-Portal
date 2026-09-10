@@ -777,6 +777,45 @@ export async function updateFullProperty(
       note("rentPerMonthPence", existing.rentPerMonthPence, input.rentPerMonthPence);
     }
 
+    /*
+     * The estimated gross is derived from the commission and the rent, so it
+     * is recalculated whenever either of them moves. Left alone it went stale:
+     * the record showed the old estimate, and a deal opened from it inherited
+     * a figure nobody had agreed.
+     */
+    if (
+      input.commissionType !== undefined ||
+      input.commissionValue !== undefined ||
+      input.rentPerMonthPence !== undefined ||
+      input.propertyType !== undefined
+    ) {
+      const type =
+        input.commissionType !== undefined ? input.commissionType : existing.commissionType;
+      const value =
+        input.commissionValue !== undefined ? input.commissionValue : existing.commissionValue;
+      const monthlyRent =
+        input.rentPerMonthPence !== undefined
+          ? input.rentPerMonthPence
+          : existing.rentPerMonthPence;
+
+      validateCommissionValue(type, value);
+
+      // A shared property earns per room, so the property-level estimate stays
+      // empty rather than reading as zero.
+      const propertyType =
+        input.propertyType !== undefined ? input.propertyType : existing.propertyType;
+
+      patch.commissionAmountPence =
+        propertyType === "FULL"
+          ? resolveAgreedCommissionPence(
+              type && value != null ? { type, value } : null,
+              monthlyRent ?? null,
+            )
+          : null;
+
+      note("commissionAmountPence", existing.commissionAmountPence, patch.commissionAmountPence);
+    }
+
     /* ------------------------------------------------------------ listing */
 
     for (const key of ["title", "description", "metaTitle", "metaDescription"] as const) {
@@ -1191,6 +1230,30 @@ export async function updateRoom(
           changedById: context.user.id,
         });
       }
+    }
+
+    // Same derivation as the property: a room's estimated commission follows
+    // its own commission terms and its own rent.
+    if (
+      room.commissionType !== undefined ||
+      room.commissionValue !== undefined ||
+      patch.rentPerMonthPence !== undefined
+    ) {
+      const type =
+        room.commissionType !== undefined ? room.commissionType : existing.commissionType;
+      const value =
+        room.commissionValue !== undefined ? room.commissionValue : existing.commissionValue;
+      const monthlyRent =
+        patch.rentPerMonthPence !== undefined
+          ? (patch.rentPerMonthPence as number)
+          : existing.rentPerMonthPence;
+
+      validateCommissionValue(type, value);
+
+      patch.commissionAmountPence = resolveAgreedCommissionPence(
+        type && value != null ? { type, value } : null,
+        monthlyRent ?? null,
+      );
     }
 
     await tx.update(propertyRooms).set(patch).where(eq(propertyRooms.id, roomId));

@@ -10,6 +10,7 @@ import { formatDateTime } from "@/lib/dates";
 import { displayPhone } from "@/lib/phone";
 import { listCalls } from "@/services/follow-ups";
 import { StartCallButton, StartCallOnArrival } from "@/components/calls/StartCall";
+import CallRowActions from "./CallRowActions";
 
 export const metadata: Metadata = { title: "Call log" };
 
@@ -103,6 +104,11 @@ export default async function CallsPage({
                   <th>Outcome</th>
                   <th>Advert</th>
                   <th>Notes</th>
+                  {context.isAdmin && (
+                    <th className="table-actions">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -151,6 +157,18 @@ export default async function CallsPage({
                     <td className="table-secondary truncate" style={{ maxWidth: 240 }}>
                       {row.notes ?? row.openingNote ?? "-"}
                     </td>
+
+                    {context.isAdmin && (
+                      <td className="table-actions">
+                        <CallRowActions
+                          callId={row.id}
+                          label={`Attempt ${row.attemptNumber} on ${displayPhone(
+                            row.originalPhone,
+                            row.normalizedPhone,
+                          )}`}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
