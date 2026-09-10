@@ -10,6 +10,7 @@ import {
   Lock,
   PhoneCall,
   PhoneOff,
+  Plus,
   Search,
   ThumbsUp,
   UserCheck,
@@ -59,13 +60,21 @@ const NOT_INTERESTED_REASONS = [
 export default function CallWorkflow({
   initialPhone,
   initialFollowUpId,
-  onInterested,
+  onOnboard,
   onDone,
 }: {
   initialPhone?: string;
   initialFollowUpId?: string;
-  /** Hands the call over to onboarding, in place of navigating there. */
-  onInterested?: (handover: { callId: string; phone: string; display: string }) => void;
+  /**
+   * Hands over to property onboarding in place of navigating there - after an
+   * interested call, or straight from a number that is already a landlord.
+   */
+  onOnboard?: (handover: {
+    callId?: string;
+    phone: string;
+    display: string;
+    landlordId?: string;
+  }) => void;
   /** Called once an outcome is recorded and there is nothing left to do. */
   onDone?: () => void;
 }) {
@@ -143,14 +152,34 @@ export default function CallWorkflow({
         setError(result.error);
         return;
       }
-      if (onInterested) {
-        onInterested(result.data);
-        return;
-      }
-
-      const params = new URLSearchParams(result.data);
-      router.push(`/properties/new?${params.toString()}`);
+      onboard(result.data);
     });
+  }
+
+  /**
+   * Straight to onboarding for a number that is already a landlord: no call is
+   * started, because looking a number up is not calling it.
+   */
+  function addPropertyForLandlord(landlord: { id: string; phone: string; display: string }) {
+    onboard({ phone: landlord.phone, display: landlord.display, landlordId: landlord.id });
+  }
+
+  function onboard(handover: {
+    callId?: string;
+    phone: string;
+    display: string;
+    landlordId?: string;
+  }) {
+    if (onOnboard) {
+      onOnboard(handover);
+      return;
+    }
+
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(handover)) {
+      if (value) params.set(key, value);
+    }
+    router.push(`/properties/new?${params.toString()}`);
   }
 
   function chooseNoAnswer() {
@@ -246,6 +275,7 @@ export default function CallWorkflow({
             result={lookup}
             pending={pending}
             onStartCall={beginCall}
+            onAddProperty={addPropertyForLandlord}
             onBack={reset}
           />
         </>
@@ -350,11 +380,14 @@ function LookupResult({
   result,
   pending,
   onStartCall,
+  onAddProperty,
   onBack,
 }: {
   result: PhoneLookupResult;
   pending: boolean;
   onStartCall: (override?: boolean) => void;
+  /** Offered for a number that already belongs to a landlord this user owns. */
+  onAddProperty: (landlord: { id: string; phone: string; display: string }) => void;
   onBack: () => void;
 }) {
   if (result.kind === "INVALID") {
@@ -409,8 +442,13 @@ function LookupResult({
         <div className="lookup-result lookup-result--existing">
           <div className="lookup-title">
             <UserCheck size={16} style={{ display: "inline", marginRight: 6 }} />
-            Existing landlord found
+            Already on the system
           </div>
+
+          <p className="small" style={{ marginTop: 4 }}>
+            {formatUKPhone(result.normalizedPhone)} belongs to {result.landlord.name}
+            {result.agent ? `, assigned to ${result.agent.fullName}` : ", with no agent assigned"}.
+          </p>
 
           <dl className="definition-list" style={{ marginTop: 10 }}>
             <div>
@@ -456,13 +494,32 @@ function LookupResult({
           )}
         </div>
 
+        {/* Onboarding another property is offered only to whoever the landlord
+            belongs to - their fronter, their agent, or an administrator. To
+            anyone else the number is simply taken. */}
         <div className="row">
           {result.canView && (
-            <Link href={`/landlords/${result.landlord.id}`} className="btn btn--primary">
-              View landlord
-            </Link>
+            <>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() =>
+                  onAddProperty({
+                    id: result.landlord.id,
+                    phone: result.normalizedPhone,
+                    display: result.landlord.displayPhone,
+                  })
+                }
+              >
+                <Plus size={15} />
+                Add property
+              </button>
+              <Link href={`/landlords/${result.landlord.id}`} className="btn btn--secondary">
+                View landlord
+              </Link>
+            </>
           )}
-          <button type="button" className="btn btn--secondary" onClick={onBack}>
+          <button type="button" className="btn btn--ghost" onClick={onBack}>
             Close
           </button>
         </div>

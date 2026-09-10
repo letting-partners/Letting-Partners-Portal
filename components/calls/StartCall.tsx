@@ -43,7 +43,7 @@ const PropertyWizard = dynamic(() => import("@/app/(app)/properties/new/Property
  * property is saved.
  */
 
-type Handover = { callId: string; phone: string; display: string };
+type Handover = { callId?: string; phone: string; display: string; landlordId?: string };
 
 type StartCallOptions = { phone?: string; followUpId?: string };
 
@@ -80,13 +80,16 @@ export function StartCallProvider({ children }: { children: React.ReactNode }) {
 
   /*
    * A landlord who is already on the system skips the first wizard step, and
-   * only the server can say whether this number is. Asked once, on handover,
-   * so the wizard opens on the right step rather than jumping a moment later.
+   * only the server can say who that landlord is. Asked once, on handover, so
+   * the wizard opens on the right step rather than jumping a moment later.
    */
-  const onInterested = useCallback(
+  const onOnboard = useCallback(
     (next: Handover) => {
       startTransition(async () => {
-        const found = await findLandlordForOnboardingAction({ phone: next.phone });
+        const found = await findLandlordForOnboardingAction({
+          landlordId: next.landlordId,
+          phone: next.phone,
+        });
         if (!found.ok) {
           // Not fatal: the wizard simply starts at the client step, and the
           // phone index still refuses a genuine duplicate.
@@ -110,10 +113,18 @@ export function StartCallProvider({ children }: { children: React.ReactNode }) {
         onClose={close}
         wide={handover !== null}
         className={handover ? "modal--onboarding" : undefined}
-        title={handover ? "Add landlord and property" : "Start call"}
+        title={
+          handover
+            ? handover.landlordId
+              ? "Add another property"
+              : "Add landlord and property"
+            : "Start call"
+        }
         description={
           handover
-            ? "Seven steps. Everything is saved as you go."
+            ? handover.landlordId
+              ? "The landlord is already on the system, so this starts at the property itself."
+              : "Seven steps. Everything is saved as you go."
             : "Look the number up before dialling so ownership and history are clear."
         }
       >
@@ -132,7 +143,7 @@ export function StartCallProvider({ children }: { children: React.ReactNode }) {
             key={`${options?.phone ?? ""}:${options?.followUpId ?? ""}`}
             initialPhone={options?.phone}
             initialFollowUpId={options?.followUpId}
-            onInterested={onInterested}
+            onOnboard={onOnboard}
             onDone={close}
           />
         )}
