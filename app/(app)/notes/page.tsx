@@ -9,6 +9,8 @@ import { EmptyState, PageHeader } from "@/components/ui/layout";
 import { Avatar } from "@/components/ui/Avatar";
 import { formatDateTime, formatRelative } from "@/lib/dates";
 import NoteRowActions from "./NoteRowActions";
+import PersonalNotes from "./PersonalNotes";
+import { listPersonalNotes } from "@/services/personal-notes";
 
 export const metadata: Metadata = { title: "Notes" };
 
@@ -19,8 +21,23 @@ const ENTITY_ROUTES: Record<string, string> = {
   TENANT: "/tenants",
 };
 
-export default async function NotesPage() {
+type View = "records" | "personal";
+
+const VIEWS: { key: View; label: string }[] = [
+  { key: "records", label: "Record notes" },
+  { key: "personal", label: "My notes" },
+];
+
+export default async function NotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
   const context = await pageAccess();
+  const params = await searchParams;
+  const view: View = params.view === "personal" ? "personal" : "records";
+
+  const personal = view === "personal" ? await listPersonalNotes(context) : [];
 
   // A user sees the notes they wrote; an administrator sees everything.
   const rows = await db
@@ -49,12 +66,39 @@ export default async function NotesPage() {
       <PageHeader
         title="Notes"
         subtitle={
-          context.isAdmin
-            ? "Every internal note across the business, newest first."
-            : "The notes you have written, newest first."
+          view === "personal"
+            ? "Your own scratchpad. Nobody else can see these, including administrators."
+            : context.isAdmin
+              ? "Every internal note across the business, newest first."
+              : "The notes you have written, newest first."
         }
       />
 
+      <nav className="tabs" style={{ marginBottom: 16 }} aria-label="Notes views">
+        {VIEWS.map((item) => (
+          <Link
+            key={item.key}
+            href={item.key === "records" ? "/notes" : `/notes?view=${item.key}`}
+            className="tab"
+            aria-selected={view === item.key}
+            role="tab"
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+
+      {view === "personal" ? (
+        <PersonalNotes
+          notes={personal.map((note) => ({
+            id: note.id,
+            title: note.title,
+            body: note.body,
+            pinned: note.pinned,
+            updatedAt: note.updatedAt.toISOString(),
+          }))}
+        />
+      ) : (
       <div className="card">
         {rows.length === 0 ? (
           <EmptyState
@@ -107,6 +151,7 @@ export default async function NotesPage() {
           </ul>
         )}
       </div>
+      )}
     </>
   );
 }

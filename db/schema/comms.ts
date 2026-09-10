@@ -48,6 +48,34 @@ export const notes = pgTable(
   ],
 );
 
+/**
+ * A private scratchpad, one per user.
+ *
+ * Deliberately not the notes table: those hang off a landlord or a property
+ * and an admin can read and edit any of them, which is right for a shared
+ * record and wrong for something called personal. Every query here filters by
+ * the owner, with no admin override.
+ */
+export const personalNotes = pgTable(
+  "personal_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 200 }),
+    body: text("body").notNull().default(""),
+    /** Pinned notes sort to the top of the owner's list. */
+    pinned: boolean("pinned").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("personal_notes_user_idx").on(t.userId, t.updatedAt),
+  ],
+);
+
 /* ---------------------------------------------------------- notifications */
 
 export const notifications = pgTable(

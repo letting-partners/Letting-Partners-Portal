@@ -50,6 +50,13 @@
       "when": 1788997430780,
       "tag": "0006_damp_dormammu",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788998710183,
+      "tag": "0007_silent_black_cat",
+      "breakpoints": true
     }
   ]
 }

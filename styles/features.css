@@ -1036,3 +1036,142 @@
     position: static;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   PERSONAL NOTES
+   A private scratchpad: list on the left, the open note on the right.
+--------------------------------------------------------------------------- */
+
+.notepad {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  min-height: 560px;
+}
+
+.notepad-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.notepad-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notepad-list ul {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.notepad-item {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 11px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.notepad-item:hover {
+  background: var(--surface-3);
+}
+
+.notepad-item.is-active {
+  background: var(--accent-soft);
+}
+
+.notepad-item-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.87rem;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notepad-item-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.notepad-editor {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.notepad-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notepad-editor-head .input {
+  border: 0;
+  background: transparent;
+  padding-inline: 0;
+}
+
+.notepad-editor-head .input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Plain and full height: it is a page to write on, not a form field. */
+.notepad-body {
+  flex: 1;
+  border: 0;
+  padding: 18px;
+  resize: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  line-height: 1.7;
+}
+
+.notepad-body:focus {
+  outline: none;
+}
+
+.notepad-status {
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .notepad {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .notepad-list ul {
+    max-height: 260px;
+  }
+
+  .notepad-body {
+    min-height: 320px;
+  }
+}
