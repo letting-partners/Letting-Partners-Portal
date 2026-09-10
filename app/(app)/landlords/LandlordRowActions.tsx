@@ -3,13 +3,15 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Eye, Pencil, PhoneForwarded, Trash2 } from "lucide-react";
+import { AlertTriangle, Eye, Pencil, PhoneForwarded, Trash2, UserCog } from "lucide-react";
 import { RowMenu } from "@/components/ui/RowMenu";
+import ReassignDialog, { type AssignablePerson } from "@/components/ui/ReassignDialog";
 import { ConfirmDialog, Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import {
   archiveLandlordAction,
   correctLandlordPhoneAction,
+  reassignLandlordAction,
   updateLandlordAction,
 } from "./actions";
 
@@ -26,6 +28,8 @@ export default function LandlordRowActions({
   landlord,
   canEdit,
   isAdmin,
+  agents = [],
+  fronters = [],
 }: {
   landlord: {
     id: string;
@@ -35,7 +39,11 @@ export default function LandlordRowActions({
     gender?: string | null;
     propertyCount: number;
     phone?: string | null;
+    assignedAgentId?: string | null;
+    originatingFronterId?: string | null;
   };
+  agents?: AssignablePerson[];
+  fronters?: AssignablePerson[];
   canEdit: boolean;
   isAdmin: boolean;
 }) {
@@ -45,6 +53,7 @@ export default function LandlordRowActions({
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [correctingPhone, setCorrectingPhone] = useState(false);
+  const [reassigning, setReassigning] = useState(false);
   const [newPhone, setNewPhone] = useState(landlord.phone ?? "");
   const [phoneReason, setPhoneReason] = useState("");
 
@@ -120,6 +129,18 @@ export default function LandlordRowActions({
           >
             <Pencil size={15} />
             Edit details
+          </button>
+        )}
+
+        {isAdmin && (
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() => setReassigning(true)}
+          >
+            <UserCog size={15} />
+            Reassign
           </button>
         )}
 
@@ -292,6 +313,17 @@ export default function LandlordRowActions({
           </div>
         </div>
       </Modal>
+
+      <ReassignDialog
+        open={reassigning}
+        onClose={() => setReassigning(false)}
+        label={landlord.name}
+        agents={agents}
+        fronters={fronters}
+        currentAgentId={landlord.assignedAgentId}
+        currentFronterId={landlord.originatingFronterId}
+        onSubmit={(next, reason) => reassignLandlordAction(landlord.id, next, reason)}
+      />
 
       <ConfirmDialog
         open={confirmDelete}

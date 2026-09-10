@@ -179,9 +179,11 @@ export default async function TenantsPage({
                           moveInDate: row.moveInDate,
                           bedrooms: row.bedrooms,
                           propertyTypePreference: row.propertyTypePreference,
+                          ownerAgentId: row.ownerAgentId,
                         }}
                         canEdit={canEditTenant(context, { ownerAgentId: row.ownerAgentId })}
                         isAdmin={context.isAdmin}
+                        agents={agents}
                       />
                     </td>
                   </tr>

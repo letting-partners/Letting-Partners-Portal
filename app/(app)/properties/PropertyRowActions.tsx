@@ -3,13 +3,26 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CircleSlash, Eye, Globe, GlobeLock, Pencil, RotateCcw, Star, StarOff, Trash2 } from "lucide-react";
+import {
+  CircleSlash,
+  Eye,
+  Globe,
+  GlobeLock,
+  Pencil,
+  RotateCcw,
+  Star,
+  StarOff,
+  Trash2,
+  UserCog,
+} from "lucide-react";
 import { RowMenu } from "@/components/ui/RowMenu";
+import ReassignDialog, { type AssignablePerson } from "@/components/ui/ReassignDialog";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import {
   archiveAction,
   publishAction,
+  reassignPropertyAction,
   setAvailabilityAction,
   setFeaturedAction,
   unpublishAction,
@@ -20,15 +33,28 @@ export default function PropertyRowActions({
   propertyId,
   listingStatus,
   isFeatured,
+  isAdmin = false,
+  agents = [],
+  fronters = [],
+  assignedAgentId,
+  originatingFronterId,
+  label,
 }: {
   propertyId: string;
   listingStatus: string;
   isFeatured: boolean;
+  isAdmin?: boolean;
+  agents?: AssignablePerson[];
+  fronters?: AssignablePerson[];
+  assignedAgentId?: string | null;
+  originatingFronterId?: string | null;
+  label?: string;
 }) {
   const router = useRouter();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
   const [confirm, setConfirm] = useState<"unpublish" | "archive" | null>(null);
+  const [reassigning, setReassigning] = useState(false);
 
   const isPublished = listingStatus === "PUBLISHED";
   const isDraft = listingStatus === "DRAFT";
@@ -127,6 +153,18 @@ export default function PropertyRowActions({
           </button>
         )}
 
+        {isAdmin && (
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() => setReassigning(true)}
+          >
+            <UserCog size={15} />
+            Reassign
+          </button>
+        )}
+
         <div className="menu-separator" />
 
         <button
@@ -140,6 +178,17 @@ export default function PropertyRowActions({
           Delete
         </button>
       </RowMenu>
+
+      <ReassignDialog
+        open={reassigning}
+        onClose={() => setReassigning(false)}
+        label={label ?? "this property"}
+        agents={agents}
+        fronters={fronters}
+        currentAgentId={assignedAgentId}
+        currentFronterId={originatingFronterId}
+        onSubmit={(next, reason) => reassignPropertyAction(propertyId, next, reason)}
+      />
 
       <ConfirmDialog
         open={confirm === "unpublish"}

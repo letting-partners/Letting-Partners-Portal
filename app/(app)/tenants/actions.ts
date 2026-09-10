@@ -2,8 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ForbiddenError, requireAgentOrAdmin } from "@/services/permissions";
-import { archiveTenant, createTenant, TenantError, updateTenant } from "@/services/tenants";
+import { ForbiddenError, requireAdmin, requireAgentOrAdmin } from "@/services/permissions";
+import {
+  archiveTenant,
+  createTenant,
+  reassignTenant,
+  TenantError,
+  updateTenant,
+} from "@/services/tenants";
 
 /** Tenant actions. Fronters have no tenant access, so these require an agent. */
 
@@ -70,6 +76,24 @@ export async function updateTenantAction(
       },
       context,
     );
+    revalidatePath("/tenants");
+    revalidatePath(`/tenants/${tenantId}`);
+    return { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Move a tenant to a different owning agent. Admin only. */
+export async function reassignTenantAction(
+  tenantId: string,
+  agentId: string,
+  reason: string,
+): Promise<ActionResult> {
+  try {
+    const context = await requireAdmin();
+    await reassignTenant(tenantId, agentId, reason, context);
+
     revalidatePath("/tenants");
     revalidatePath(`/tenants/${tenantId}`);
     return { ok: true, data: null };

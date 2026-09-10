@@ -15,7 +15,7 @@ import {
 import { formatDate } from "@/lib/dates";
 import { formatGBP } from "@/lib/money";
 import { listProperties } from "@/services/properties";
-import { listAssignableAgents } from "@/services/properties";
+import { listAssignableAgents, listAssignableFronters } from "@/services/properties";
 import PropertyRowActions from "./PropertyRowActions";
 
 export const metadata: Metadata = { title: "Properties" };
@@ -59,7 +59,7 @@ async function PropertiesTable({
 }) {
   const context = await pageAccess();
 
-  const [result, agents] = await Promise.all([
+  const [result, agents, fronters] = await Promise.all([
     listProperties(context, {
       search: params.q,
       propertyType: params.type === "SHARED" ? "SHARED" : params.type === "FULL" ? "FULL" : undefined,
@@ -70,6 +70,7 @@ async function PropertiesTable({
       page: params.page ? Number(params.page) : 1,
     }),
     isAdmin ? listAssignableAgents() : Promise.resolve([]),
+    isAdmin ? listAssignableFronters() : Promise.resolve([]),
   ]);
 
   return (
@@ -226,6 +227,12 @@ async function PropertiesTable({
                       propertyId={row.id}
                       listingStatus={row.listingStatus}
                       isFeatured={row.isFeatured}
+                      isAdmin={context.isAdmin}
+                      agents={agents}
+                      fronters={fronters}
+                      assignedAgentId={row.assignedAgentId}
+                      originatingFronterId={row.originatingFronterId}
+                      label={row.title ?? row.reference}
                     />
                   </td>
                 </tr>

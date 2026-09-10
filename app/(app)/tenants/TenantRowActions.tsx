@@ -3,12 +3,13 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Eye, Pencil, Trash2, UserCog } from "lucide-react";
 import { RowMenu } from "@/components/ui/RowMenu";
+import ReassignDialog, { type AssignablePerson } from "@/components/ui/ReassignDialog";
 import { MoneyInput } from "@/components/ui/MoneyInput";
 import { ConfirmDialog, Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { archiveTenantAction, updateTenantAction } from "./actions";
+import { archiveTenantAction, reassignTenantAction, updateTenantAction } from "./actions";
 
 /**
  * Per-row actions for the tenants table.
@@ -22,6 +23,7 @@ export default function TenantRowActions({
   tenant,
   canEdit,
   isAdmin,
+  agents = [],
 }: {
   tenant: {
     id: string;
@@ -41,7 +43,9 @@ export default function TenantRowActions({
     moveInDate: string | null;
     bedrooms: number | null;
     propertyTypePreference: string | null;
+    ownerAgentId?: string | null;
   };
+  agents?: AssignablePerson[];
   canEdit: boolean;
   isAdmin: boolean;
 }) {
@@ -50,6 +54,7 @@ export default function TenantRowActions({
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [reassigning, setReassigning] = useState(false);
 
   const [name, setName] = useState(tenant.name);
   const [email, setEmail] = useState(tenant.email ?? "");
@@ -134,6 +139,18 @@ export default function TenantRowActions({
           >
             <Pencil size={15} />
             Edit details
+          </button>
+        )}
+
+        {isAdmin && (
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() => setReassigning(true)}
+          >
+            <UserCog size={15} />
+            Reassign
           </button>
         )}
 
@@ -358,6 +375,19 @@ export default function TenantRowActions({
           </div>
         </div>
       </Modal>
+
+      <ReassignDialog
+        open={reassigning}
+        onClose={() => setReassigning(false)}
+        label={tenant.name}
+        agents={agents}
+        currentAgentId={tenant.ownerAgentId}
+        onSubmit={(next, reason) =>
+          next.agentId
+            ? reassignTenantAction(tenant.id, next.agentId, reason)
+            : Promise.resolve({ ok: false, error: "A tenant must belong to an agent." })
+        }
+      />
 
       <ConfirmDialog
         open={confirmDelete}

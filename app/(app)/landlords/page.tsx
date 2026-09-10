@@ -13,7 +13,7 @@ import {
 import { formatDate, formatRelative } from "@/lib/dates";
 import { displayPhone } from "@/lib/phone";
 import { listLandlords } from "@/services/landlords";
-import { listAssignableAgents } from "@/services/properties";
+import { listAssignableAgents, listAssignableFronters } from "@/services/properties";
 import { canEditLandlord } from "@/services/permissions";
 import LandlordRowActions from "./LandlordRowActions";
 
@@ -29,7 +29,7 @@ export default async function LandlordsPage({
   const context = await pageAccess();
   const params = await searchParams;
 
-  const [result, agents] = await Promise.all([
+  const [result, agents, fronters] = await Promise.all([
     listLandlords(context, {
       search: params.q,
       agentId: params.agent,
@@ -37,6 +37,7 @@ export default async function LandlordsPage({
       page: params.page ? Number(params.page) : 1,
     }),
     context.isAdmin ? listAssignableAgents() : Promise.resolve([]),
+    context.isAdmin ? listAssignableFronters() : Promise.resolve([]),
   ]);
 
   return (
@@ -140,12 +141,16 @@ export default async function LandlordsPage({
                           gender: row.gender ?? null,
                           propertyCount: row.propertyCount,
                           phone: row.originalPhone,
+                          assignedAgentId: row.assignedAgentId,
+                          originatingFronterId: row.originatingFronterId,
                         }}
                         canEdit={canEditLandlord(context, {
                           originatingFronterId: row.originatingFronterId,
                           assignedAgentId: row.assignedAgentId,
                         })}
                         isAdmin={context.isAdmin}
+                        agents={agents}
+                        fronters={fronters}
                       />
                     </td>
                   </tr>

@@ -411,6 +411,60 @@ export async function updateTenant(
   });
 }
 
+/**
+ * Move a tenant to a different owning agent.
+ *
+ * Admin only and a reason is required. A tenant belongs to whoever registered
+ * them, and that ownership decides who sees them and who is credited on a
+ * cross sell, so moving one is a deliberate act rather than an edit.
+ */
+export async function reassignTenant(
+  id: string,
+  agentId: string,
+  reason: string,
+  context: AccessContext,
+): Promise<void> {
+  if (!context.isAdmin) throw new ForbiddenError();
+  if (!reason.trim()) throw new TenantError("Give a reason for the reassignment.");
+
+  const rows = await db.select().from(tenants).where(eq(tenants.id, id)).limit(1);
+  const tenant = rows[0];
+  if (!tenant || tenant.deletedAt) throw new TenantError("That tenant no longer exists.");
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(tenants)
+      .set({ ownerAgentId: agentId, updatedAt: new Date() })
+      .where(eq(tenants.id, id));
+
+    await recordActivity(
+      {
+        type: "TENANT_CREATED",
+        entityType: ENTITY.tenant,
+        entityId: id,
+        actorId: context.user.id,
+        summary: `${context.user.fullName} reassigned ${tenant.name}`,
+        metadata: { reason },
+      },
+      tx,
+    );
+
+    await recordAudit(
+      {
+        user: context.user,
+        action: "REASSIGN",
+        entityType: ENTITY.tenant,
+        entityId: id,
+        entityLabel: tenant.name,
+        before: { ownerAgentId: tenant.ownerAgentId },
+        after: { ownerAgentId: agentId },
+        metadata: { reason },
+      },
+      tx,
+    );
+  });
+}
+
 export async function archiveTenant(id: string, context: AccessContext): Promise<void> {
   const rows = await db.select().from(tenants).where(eq(tenants.id, id)).limit(1);
   const tenant = rows[0];

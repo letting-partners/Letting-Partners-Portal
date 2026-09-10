@@ -1457,6 +1457,68 @@ export async function getProperty(id: string, context: AccessContext) {
 
 /* -------------------------------------------------------------- archive */
 
+/**
+ * Move a property to a different agent, or a different originating fronter.
+ *
+ * Admin only and a reason is required. Commission already calculated against a
+ * closed deal is not touched: those figures were snapshotted when the deal
+ * closed and belong to whoever earned them. This changes who works the
+ * property from here.
+ */
+export async function reassignProperty(
+  id: string,
+  next: { agentId?: string | null; fronterId?: string | null },
+  reason: string,
+  context: AccessContext,
+): Promise<void> {
+  if (!context.isAdmin) throw new ForbiddenError();
+  if (!reason.trim()) throw new PropertyError("Give a reason for the reassignment.");
+
+  await db.transaction(async (tx) => {
+    const rows = await tx.select().from(properties).where(eq(properties.id, id)).limit(1);
+    const property = rows[0];
+    if (!property || property.deletedAt) throw new PropertyError("That property no longer exists.");
+
+    const patch: Record<string, unknown> = { updatedAt: new Date() };
+    if (next.agentId !== undefined) patch.assignedAgentId = next.agentId;
+    if (next.fronterId !== undefined) patch.originatingFronterId = next.fronterId;
+
+    await tx.update(properties).set(patch).where(eq(properties.id, id));
+
+    await recordActivity(
+      {
+        type: "PROPERTY_UPDATED",
+        entityType: ENTITY.property,
+        entityId: id,
+        actorId: context.user.id,
+        summary: `${context.user.fullName} reassigned the property`,
+        metadata: { reason },
+      },
+      tx,
+    );
+
+    await recordAudit(
+      {
+        user: context.user,
+        action: "REASSIGN",
+        entityType: ENTITY.property,
+        entityId: id,
+        entityLabel: property.reference,
+        before: {
+          assignedAgentId: property.assignedAgentId,
+          originatingFronterId: property.originatingFronterId,
+        },
+        after: {
+          assignedAgentId: next.agentId ?? property.assignedAgentId,
+          originatingFronterId: next.fronterId ?? property.originatingFronterId,
+        },
+        metadata: { reason },
+      },
+      tx,
+    );
+  });
+}
+
 export async function archiveProperty(
   id: string,
   reason: string | null,

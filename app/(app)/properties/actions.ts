@@ -11,6 +11,7 @@ import {
   PropertyError,
   removeRoom,
   savePublicDetails,
+  reassignProperty,
   setPropertyAvailability,
   updateFullProperty,
   setPropertyFeatured,
@@ -101,6 +102,24 @@ const fullPropertySchema = z.object({
   metaTitle: z.string().trim().max(240).nullable().optional(),
   metaDescription: z.string().trim().max(400).nullable().optional(),
 });
+
+/** Move a property to a different agent or originating fronter. Admin only. */
+export async function reassignPropertyAction(
+  propertyId: string,
+  next: { agentId?: string | null; fronterId?: string | null },
+  reason: string,
+): Promise<ActionResult> {
+  try {
+    const context = await requireAdmin();
+    await reassignProperty(propertyId, next, reason, context);
+
+    revalidatePath("/properties");
+    revalidatePath(`/properties/${propertyId}`);
+    return { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
 
 /** Admin edit of every field on a property. */
 export async function updateFullPropertyAction(
