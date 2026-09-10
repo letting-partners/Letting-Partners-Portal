@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import { RowMenu } from "@/components/ui/RowMenu";
+import { MoneyInput } from "@/components/ui/MoneyInput";
 import { ConfirmDialog, Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { archiveTenantAction, updateTenantAction } from "./actions";
@@ -30,6 +31,16 @@ export default function TenantRowActions({
     postcodePreferences: string | null;
     requirements: string | null;
     status: string;
+    roomType: string | null;
+    occupants: string | null;
+    monthlyIncomePence: number | null;
+    occupation: string | null;
+    countryOfOrigin: string | null;
+    minBudgetPence: number | null;
+    maxBudgetPence: number | null;
+    moveInDate: string | null;
+    bedrooms: number | null;
+    propertyTypePreference: string | null;
   };
   canEdit: boolean;
   isAdmin: boolean;
@@ -46,6 +57,16 @@ export default function TenantRowActions({
   const [postcodes, setPostcodes] = useState(tenant.postcodePreferences ?? "");
   const [requirements, setRequirements] = useState(tenant.requirements ?? "");
   const [status, setStatus] = useState(tenant.status);
+  const [roomType, setRoomType] = useState(tenant.roomType ?? "");
+  const [occupants, setOccupants] = useState(tenant.occupants ?? "");
+  const [income, setIncome] = useState<number | null>(tenant.monthlyIncomePence);
+  const [occupation, setOccupation] = useState(tenant.occupation ?? "");
+  const [country, setCountry] = useState(tenant.countryOfOrigin ?? "");
+  const [minBudget, setMinBudget] = useState<number | null>(tenant.minBudgetPence);
+  const [maxBudget, setMaxBudget] = useState<number | null>(tenant.maxBudgetPence);
+  const [moveInDate, setMoveInDate] = useState(tenant.moveInDate ?? "");
+  const [bedrooms, setBedrooms] = useState(tenant.bedrooms?.toString() ?? "");
+  const [typePreference, setTypePreference] = useState(tenant.propertyTypePreference ?? "");
 
   function save() {
     startTransition(async () => {
@@ -56,6 +77,20 @@ export default function TenantRowActions({
         postcodePreferences: postcodes || null,
         requirements: requirements || null,
         status,
+        roomType: roomType || null,
+        occupants: occupants || null,
+        monthlyIncomePence: income,
+        occupation: occupation || null,
+        countryOfOrigin: country || null,
+        minBudgetPence: minBudget,
+        maxBudgetPence: maxBudget,
+        moveInDate: moveInDate || null,
+        bedrooms: bedrooms ? Number(bedrooms) : null,
+        propertyTypePreference: (typePreference || null) as
+          | "HOUSE"
+          | "FLAT"
+          | "STUDIO_FLAT"
+          | null,
       });
 
       if (!result.ok) {
@@ -201,6 +236,111 @@ export default function TenantRowActions({
               <option value="NEGOTIATING">Negotiating</option>
               <option value="PLACED">Placed</option>
               <option value="INACTIVE">Inactive</option>
+            </select>
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor={`t-room-${tenant.id}`}>
+              Room type
+            </label>
+            <select
+              id={`t-room-${tenant.id}`}
+              className="select"
+              value={roomType}
+              onChange={(event) => setRoomType(event.target.value)}
+            >
+              <option value="">Not specified</option>
+              <option value="Single room">Single room</option>
+              <option value="Double room">Double room</option>
+              <option value="En-suite room">En-suite room</option>
+              <option value="Master room">Master room</option>
+              <option value="Twin room">Twin room</option>
+              <option value="Studio">Studio</option>
+              <option value="Whole property">Whole property</option>
+            </select>
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor={`t-occupants-${tenant.id}`}>
+              Number of people
+            </label>
+            <input
+              id={`t-occupants-${tenant.id}`}
+              className="input"
+              value={occupants}
+              onChange={(event) => setOccupants(event.target.value)}
+            />
+          </div>
+
+          <MoneyInput label="Monthly income" value={income} onChange={setIncome} />
+
+          <div className="field">
+            <label className="field-label" htmlFor={`t-occupation-${tenant.id}`}>
+              Occupation
+            </label>
+            <input
+              id={`t-occupation-${tenant.id}`}
+              className="input"
+              value={occupation}
+              onChange={(event) => setOccupation(event.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor={`t-country-${tenant.id}`}>
+              Country of origin
+            </label>
+            <input
+              id={`t-country-${tenant.id}`}
+              className="input"
+              value={country}
+              onChange={(event) => setCountry(event.target.value)}
+            />
+          </div>
+
+          <MoneyInput label="Minimum budget" value={minBudget} onChange={setMinBudget} />
+          <MoneyInput label="Maximum budget" value={maxBudget} onChange={setMaxBudget} />
+
+          <div className="field">
+            <label className="field-label" htmlFor={`t-movein-${tenant.id}`}>
+              Move in date
+            </label>
+            <input
+              id={`t-movein-${tenant.id}`}
+              type="date"
+              className="input"
+              value={moveInDate}
+              onChange={(event) => setMoveInDate(event.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor={`t-beds-${tenant.id}`}>
+              Bedrooms
+            </label>
+            <input
+              id={`t-beds-${tenant.id}`}
+              className="input"
+              inputMode="numeric"
+              value={bedrooms}
+              onChange={(event) => setBedrooms(event.target.value.replace(/\D/g, ""))}
+            />
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor={`t-pref-${tenant.id}`}>
+              Property type preference
+            </label>
+            <select
+              id={`t-pref-${tenant.id}`}
+              className="select"
+              value={typePreference}
+              onChange={(event) => setTypePreference(event.target.value)}
+            >
+              <option value="">No preference</option>
+              <option value="HOUSE">House</option>
+              <option value="FLAT">Flat</option>
+              <option value="STUDIO_FLAT">Studio flat</option>
             </select>
           </div>
 

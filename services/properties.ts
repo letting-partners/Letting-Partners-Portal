@@ -621,6 +621,199 @@ function defaultMetaDescription(description: string): string {
 export { checkPublishReadiness, resolveRent };
 export type { PublishReadiness };
 
+export type FullPropertyInput = {
+  propertyType?: "FULL" | "SHARED";
+  category?: "HOUSE" | "FLAT" | "STUDIO_FLAT" | null;
+
+  addressLine1?: string;
+  addressLine2?: string | null;
+  doorNumber?: string | null;
+  town?: string | null;
+  county?: string | null;
+  postcode?: string;
+  area?: string | null;
+
+  features?: Record<string, boolean | null>;
+  livingRoom?: "SHARED" | "PRIVATE" | "NONE" | null;
+
+  numberOfRooms?: number | null;
+  availableRooms?: number | null;
+  bathrooms?: number | null;
+  availabilityDate?: string | null;
+
+  rentPerMonthPence?: number | null;
+  depositPence?: number | null;
+  commissionType?: "PERCENTAGE" | "FIXED" | null;
+  commissionValue?: number | null;
+
+  title?: string | null;
+  description?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+};
+
+/**
+ * Admin edit of every field on a property.
+ *
+ * The ordinary paths are deliberately narrow - publish, save public details,
+ * add a room - because each enforces the rule that belongs to it. This is the
+ * override for when the record is simply wrong: an address typed incorrectly,
+ * a rent agreed at a different figure, a category picked in haste.
+ *
+ * Admin only, and every change is audited with the before and after values, so
+ * a correction can always be traced. The database still refuses anything
+ * incoherent - more available rooms than the property has, for one - because
+ * those constraints hold whoever is writing.
+ */
+export async function updateFullProperty(
+  id: string,
+  input: FullPropertyInput,
+  context: AccessContext,
+): Promise<void> {
+  if (!context.isAdmin) throw new ForbiddenError();
+
+  await db.transaction(async (tx) => {
+    const rows = await tx.select().from(properties).where(eq(properties.id, id)).limit(1);
+    const existing = rows[0];
+    if (!existing || existing.deletedAt) throw new PropertyError("That property no longer exists.");
+
+    const patch: Record<string, unknown> = { updatedAt: new Date() };
+    const changed: Record<string, { from: unknown; to: unknown }> = {};
+
+    const note = (field: string, from: unknown, to: unknown) => {
+      if (from !== to) changed[field] = { from, to };
+    };
+
+    /* ------------------------------------------------------------ address */
+
+    const addressTouched =
+      input.addressLine1 !== undefined ||
+      input.addressLine2 !== undefined ||
+      input.town !== undefined ||
+      input.county !== undefined ||
+      input.postcode !== undefined;
+
+    if (addressTouched) {
+      const address = {
+        addressLine1: input.addressLine1 ?? existing.addressLine1,
+        addressLine2: input.addressLine2 ?? existing.addressLine2,
+        town: input.town ?? existing.town,
+        county: input.county ?? existing.county,
+        postcode: input.postcode ?? existing.postcode,
+      };
+
+      // Revalidated as a whole, so the outcode and the formatted address stay
+      // in step with the parts they are derived from.
+      const parsed = validateAddress(address);
+
+      patch.addressLine1 = address.addressLine1.trim();
+      patch.addressLine2 = address.addressLine2?.trim() || null;
+      patch.town = address.town?.trim() || null;
+      patch.county = address.county?.trim() || null;
+      patch.postcode = parsed.postcode;
+      patch.outcode = parsed.outcode;
+      patch.formattedAddress = parsed.formatted;
+
+      note("address", existing.formattedAddress, parsed.formatted);
+    }
+
+    if (input.doorNumber !== undefined) {
+      patch.doorNumber = input.doorNumber?.trim() || null;
+      note("doorNumber", existing.doorNumber, patch.doorNumber);
+    }
+    if (input.area !== undefined) {
+      patch.area = input.area?.trim() || null;
+      note("area", existing.area, patch.area);
+    }
+
+    /* --------------------------------------------------------------- type */
+
+    if (input.propertyType !== undefined) {
+      patch.propertyType = input.propertyType;
+      note("propertyType", existing.propertyType, input.propertyType);
+    }
+    if (input.category !== undefined) {
+      patch.category = input.category;
+      note("category", existing.category, input.category);
+    }
+
+    /* ----------------------------------------------------------- features */
+
+    if (input.features) Object.assign(patch, pickFeatures(input.features));
+    if (input.livingRoom !== undefined) patch.livingRoom = input.livingRoom;
+
+    /* ------------------------------------------------------------ numbers */
+
+    const numeric: [keyof FullPropertyInput, string][] = [
+      ["numberOfRooms", "numberOfRooms"],
+      ["availableRooms", "availableRooms"],
+      ["bathrooms", "bathrooms"],
+      ["depositPence", "depositPence"],
+      ["commissionValue", "commissionValue"],
+    ];
+
+    for (const [key, column] of numeric) {
+      if (input[key] !== undefined) {
+        patch[column] = input[key];
+        note(column, (existing as Record<string, unknown>)[column], input[key]);
+      }
+    }
+
+    if (input.availabilityDate !== undefined) {
+      patch.availabilityDate = input.availabilityDate || null;
+      note("availabilityDate", existing.availabilityDate, patch.availabilityDate);
+    }
+    if (input.commissionType !== undefined) {
+      patch.commissionType = input.commissionType;
+      note("commissionType", existing.commissionType, input.commissionType);
+    }
+
+    // The weekly figure is derived, so it must move with the monthly one.
+    if (input.rentPerMonthPence !== undefined) {
+      patch.rentPerMonthPence = input.rentPerMonthPence;
+      patch.rentPerWeekPence = input.rentPerMonthPence
+        ? monthlyToWeeklyPence(input.rentPerMonthPence)
+        : null;
+      note("rentPerMonthPence", existing.rentPerMonthPence, input.rentPerMonthPence);
+    }
+
+    /* ------------------------------------------------------------ listing */
+
+    for (const key of ["title", "description", "metaTitle", "metaDescription"] as const) {
+      if (input[key] !== undefined) {
+        patch[key] = input[key]?.trim() || null;
+        note(key, (existing as Record<string, unknown>)[key], patch[key]);
+      }
+    }
+
+    await tx.update(properties).set(patch).where(eq(properties.id, id));
+
+    await recordActivity(
+      {
+        type: "PROPERTY_UPDATED",
+        entityType: ENTITY.property,
+        entityId: id,
+        actorId: context.user.id,
+        summary: `${context.user.fullName} edited the property record`,
+        metadata: { fields: Object.keys(changed) },
+      },
+      tx,
+    );
+
+    await recordAudit(
+      {
+        user: context.user,
+        action: "UPDATE",
+        entityType: ENTITY.property,
+        entityId: id,
+        entityLabel: existing.reference,
+        metadata: { changed },
+      },
+      tx,
+    );
+  });
+}
+
 export async function publishProperty(
   propertyId: string,
   context: AccessContext,

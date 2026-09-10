@@ -18,8 +18,9 @@ import { listActivity, listNotes } from "@/services/notes";
 import ListingEditor from "./ListingEditor";
 import PropertyHeaderActions from "./PropertyHeaderActions";
 import PropertyPhotos from "./PropertyPhotos";
+import PropertyRecordEditor from "./PropertyRecordEditor";
 
-type TabKey = "overview" | "rooms" | "listing" | "pipeline" | "activity";
+type TabKey = "overview" | "rooms" | "listing" | "pipeline" | "activity" | "edit";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
@@ -28,6 +29,9 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "pipeline", label: "Pipeline" },
   { key: "activity", label: "Activity & notes" },
 ];
+
+/** Editing the whole record is an admin correction path, not a daily task. */
+const ADMIN_TABS: { key: TabKey; label: string }[] = [{ key: "edit", label: "Edit record" }];
 
 export async function generateMetadata({
   params,
@@ -56,7 +60,10 @@ export default async function PropertyDetailPage({
   if (!data) notFound();
 
   const { property, landlord, rooms, images, readiness } = data;
-  const activeTab: TabKey = TABS.some((item) => item.key === tab) ? (tab as TabKey) : "overview";
+  const allowedTabs = [...TABS, ...(context.isAdmin ? ADMIN_TABS : [])];
+  const activeTab: TabKey = allowedTabs.some((item) => item.key === tab)
+    ? (tab as TabKey)
+    : "overview";
 
   const [deals, viewings, notes, activity] = await Promise.all([
     listDealsForProperty(id),
@@ -111,7 +118,7 @@ export default async function PropertyDetailPage({
       </div>
 
       <nav className="tabs" style={{ marginBottom: 16 }} aria-label="Property sections">
-        {TABS.map((item) => (
+        {[...TABS, ...(context.isAdmin ? ADMIN_TABS : [])].map((item) => (
           <Link
             key={item.key}
             href={`/properties/${id}?tab=${item.key}`}
@@ -487,6 +494,52 @@ export default async function PropertyDetailPage({
             />
           </Card>
         </div>
+      )}
+
+      {activeTab === "edit" && context.isAdmin && (
+        <PropertyRecordEditor
+          property={{
+            id: property.id,
+            reference: property.reference,
+            propertyType: property.propertyType,
+            category: property.category,
+            addressLine1: property.addressLine1,
+            addressLine2: property.addressLine2,
+            doorNumber: property.doorNumber,
+            town: property.town,
+            county: property.county,
+            postcode: property.postcode,
+            area: property.area,
+            livingRoom: property.livingRoom,
+            numberOfRooms: property.numberOfRooms,
+            availableRooms: property.availableRooms,
+            bathrooms: property.bathrooms,
+            availabilityDate: property.availabilityDate,
+            rentPerMonthPence: property.rentPerMonthPence,
+            depositPence: property.depositPence,
+            commissionType: property.commissionType,
+            commissionValue: property.commissionValue,
+            title: property.title,
+            description: property.description,
+            metaTitle: property.metaTitle,
+            metaDescription: property.metaDescription,
+            features: {
+              furnished: property.furnished,
+              livingLandlord: property.livingLandlord,
+              garden: property.garden,
+              parking: property.parking,
+              billsIncluded: property.billsIncluded,
+              balcony: property.balcony,
+              disabledAccess: property.disabledAccess,
+              wifi: property.wifi,
+              couplesAllowed: property.couplesAllowed,
+              petsAllowed: property.petsAllowed,
+              dssAllowed: property.dssAllowed,
+              childrenAllowed: property.childrenAllowed,
+            },
+            hasClosedSale: property.dealStage === "CLOSED_SUCCESSFUL",
+          }}
+        />
       )}
     </>
   );

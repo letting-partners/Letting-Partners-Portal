@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { genderEnum } from "@/db/schema";
 import { ForbiddenError, requireAccess, requireAdmin } from "@/services/permissions";
-import { archiveLandlord, LandlordError, restoreLandlord, updateLandlord } from "@/services/landlords";
+import {
+  archiveLandlord,
+  correctLandlordPhone,
+  LandlordError,
+  reassignLandlord,
+  restoreLandlord,
+  updateLandlord,
+} from "@/services/landlords";
 
 /**
  * Row actions for the landlords table.
@@ -61,6 +68,54 @@ export async function updateLandlordAction(
 
     revalidatePath("/landlords");
     revalidatePath(`/landlords/${parsed.landlordId}`);
+    return { ok: true };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/**
+ * Correct the phone number a landlord is identified by.
+ *
+ * Admin only and a reason is required. The number is the system's identity key
+ * for a landlord - every call ever made to it is matched on it - so this is a
+ * correction with consequences rather than an ordinary edit, and the service
+ * records the old number alongside the new one.
+ */
+export async function correctLandlordPhoneAction(
+  landlordId: string,
+  phone: string,
+  reason: string,
+): Promise<ActionResult> {
+  try {
+    const context = await requireAdmin();
+    if (!phone.trim()) return { ok: false, error: "Enter the corrected phone number." };
+    if (!reason.trim()) return { ok: false, error: "Give a reason for the correction." };
+
+    await correctLandlordPhone(landlordId, phone, reason, context);
+
+    revalidatePath("/landlords");
+    revalidatePath(`/landlords/${landlordId}`);
+    return { ok: true };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Move a landlord to a different agent or fronter. Admin only. */
+export async function reassignLandlordAction(
+  landlordId: string,
+  next: { agentId?: string | null; fronterId?: string | null },
+  reason: string,
+): Promise<ActionResult> {
+  try {
+    const context = await requireAdmin();
+    if (!reason.trim()) return { ok: false, error: "Give a reason for the reassignment." };
+
+    await reassignLandlord(landlordId, next, reason, context);
+
+    revalidatePath("/landlords");
+    revalidatePath(`/landlords/${landlordId}`);
     return { ok: true };
   } catch (error) {
     return fail(error);

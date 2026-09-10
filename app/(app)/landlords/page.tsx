@@ -139,6 +139,7 @@ export default async function LandlordsPage({
                           alternatePhone: row.alternatePhone ?? null,
                           gender: row.gender ?? null,
                           propertyCount: row.propertyCount,
+                          phone: row.originalPhone,
                         }}
                         canEdit={canEditLandlord(context, {
                           originatingFronterId: row.originatingFronterId,

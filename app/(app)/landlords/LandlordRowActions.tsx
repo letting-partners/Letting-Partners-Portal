@@ -3,11 +3,15 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { AlertTriangle, Eye, Pencil, PhoneForwarded, Trash2 } from "lucide-react";
 import { RowMenu } from "@/components/ui/RowMenu";
 import { ConfirmDialog, Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { archiveLandlordAction, updateLandlordAction } from "./actions";
+import {
+  archiveLandlordAction,
+  correctLandlordPhoneAction,
+  updateLandlordAction,
+} from "./actions";
 
 type Gender = "MALE" | "FEMALE" | "PREFER_NOT_TO_SAY" | "OTHER";
 
@@ -30,6 +34,7 @@ export default function LandlordRowActions({
     alternatePhone?: string | null;
     gender?: string | null;
     propertyCount: number;
+    phone?: string | null;
   };
   canEdit: boolean;
   isAdmin: boolean;
@@ -39,6 +44,9 @@ export default function LandlordRowActions({
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [correctingPhone, setCorrectingPhone] = useState(false);
+  const [newPhone, setNewPhone] = useState(landlord.phone ?? "");
+  const [phoneReason, setPhoneReason] = useState("");
 
   const [name, setName] = useState(landlord.name);
   const [email, setEmail] = useState(landlord.email ?? "");
@@ -64,6 +72,20 @@ export default function LandlordRowActions({
 
       toast.success("Landlord updated.");
       setEditing(false);
+      router.refresh();
+    });
+  }
+
+  function correctPhone() {
+    startTransition(async () => {
+      const result = await correctLandlordPhoneAction(landlord.id, newPhone, phoneReason);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Phone number corrected.");
+      setCorrectingPhone(false);
+      setPhoneReason("");
       router.refresh();
     });
   }
@@ -98,6 +120,18 @@ export default function LandlordRowActions({
           >
             <Pencil size={15} />
             Edit details
+          </button>
+        )}
+
+        {isAdmin && (
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() => setCorrectingPhone(true)}
+          >
+            <PhoneForwarded size={15} />
+            Correct phone number
           </button>
         )}
 
@@ -194,6 +228,69 @@ export default function LandlordRowActions({
               </select>
             </div>
           </div>
+      </Modal>
+
+      <Modal
+        open={correctingPhone}
+        title="Correct the phone number"
+        onClose={() => setCorrectingPhone(false)}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => setCorrectingPhone(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={correctPhone}
+              disabled={pending || !newPhone.trim() || !phoneReason.trim()}
+            >
+              {pending && <span className="spinner" aria-hidden="true" />}
+              Correct number
+            </button>
+          </>
+        }
+      >
+        <div className="stack--sm stack">
+          <div className="alert alert--warning">
+            <AlertTriangle size={16} />
+            <span>
+              This number is how the system recognises {landlord.name}. Every call ever made to
+              them is matched on it, so a correction is recorded with the old number against it.
+            </span>
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor={`ll-phone-${landlord.id}`}>
+              Corrected number<span className="required">*</span>
+            </label>
+            <input
+              id={`ll-phone-${landlord.id}`}
+              className="input numeric"
+              inputMode="tel"
+              value={newPhone}
+              onChange={(event) => setNewPhone(event.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor={`ll-phone-reason-${landlord.id}`}>
+              Reason<span className="required">*</span>
+            </label>
+            <textarea
+              id={`ll-phone-reason-${landlord.id}`}
+              className="input"
+              rows={2}
+              placeholder="Digit transposed on the call, landlord changed number..."
+              value={phoneReason}
+              onChange={(event) => setPhoneReason(event.target.value)}
+            />
+          </div>
+        </div>
       </Modal>
 
       <ConfirmDialog

@@ -169,6 +169,16 @@ export default async function TenantsPage({
                           postcodePreferences: row.postcodePreferences,
                           requirements: row.requirements,
                           status: row.status,
+                          roomType: row.roomType,
+                          occupants: row.occupants,
+                          monthlyIncomePence: row.monthlyIncomePence,
+                          occupation: row.occupation,
+                          countryOfOrigin: row.countryOfOrigin,
+                          minBudgetPence: row.minBudgetPence,
+                          maxBudgetPence: row.maxBudgetPence,
+                          moveInDate: row.moveInDate,
+                          bedrooms: row.bedrooms,
+                          propertyTypePreference: row.propertyTypePreference,
                         }}
                         canEdit={canEditTenant(context, { ownerAgentId: row.ownerAgentId })}
                         isAdmin={context.isAdmin}

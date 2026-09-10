@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { MAX_TITLE_LENGTH } from "@/services/listing-seo";
 import { z } from "zod";
-import { ForbiddenError, requireAccess } from "@/services/permissions";
+import { ForbiddenError, requireAccess, requireAdmin } from "@/services/permissions";
 import {
   addRoom,
   archiveProperty,
@@ -12,6 +12,7 @@ import {
   removeRoom,
   savePublicDetails,
   setPropertyAvailability,
+  updateFullProperty,
   setPropertyFeatured,
   unpublishProperty,
   updateRoom,
@@ -57,6 +58,62 @@ export async function unpublishAction(
     const context = await requireAccess();
     await unpublishProperty(propertyId, reason ?? null, context);
     revalidateProperty(propertyId);
+    return { ok: true, data: null };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+const fullPropertySchema = z.object({
+  propertyId: z.string().uuid(),
+
+  propertyType: z.enum(["FULL", "SHARED"]).optional(),
+  category: z.enum(["HOUSE", "FLAT", "STUDIO_FLAT"]).nullable().optional(),
+
+  addressLine1: z.string().trim().min(1, "Enter the address.").max(200).optional(),
+  addressLine2: z.string().trim().max(200).nullable().optional(),
+  doorNumber: z.string().trim().max(32).nullable().optional(),
+  town: z.string().trim().max(120).nullable().optional(),
+  county: z.string().trim().max(120).nullable().optional(),
+  postcode: z.string().trim().max(10).optional(),
+  area: z.string().trim().max(120).nullable().optional(),
+
+  features: z.record(z.string(), z.boolean().nullable()).optional(),
+  livingRoom: z.enum(["SHARED", "PRIVATE", "NONE"]).nullable().optional(),
+
+  numberOfRooms: z.number().int().nonnegative().nullable().optional(),
+  availableRooms: z.number().int().nonnegative().nullable().optional(),
+  bathrooms: z.number().int().nonnegative().nullable().optional(),
+  availabilityDate: z.string().trim().max(40).nullable().optional(),
+
+  rentPerMonthPence: z.number().int().nonnegative().nullable().optional(),
+  depositPence: z.number().int().nonnegative().nullable().optional(),
+  commissionType: z.enum(["PERCENTAGE", "FIXED"]).nullable().optional(),
+  commissionValue: z.number().int().nonnegative().nullable().optional(),
+
+  title: z
+    .string()
+    .trim()
+    .max(MAX_TITLE_LENGTH, `Keep the title to ${MAX_TITLE_LENGTH} characters.`)
+    .nullable()
+    .optional(),
+  description: z.string().trim().max(8000).nullable().optional(),
+  metaTitle: z.string().trim().max(240).nullable().optional(),
+  metaDescription: z.string().trim().max(400).nullable().optional(),
+});
+
+/** Admin edit of every field on a property. */
+export async function updateFullPropertyAction(
+  input: z.input<typeof fullPropertySchema>,
+): Promise<ActionResult> {
+  try {
+    const { propertyId, ...rest } = fullPropertySchema.parse(input);
+    const context = await requireAdmin();
+
+    await updateFullProperty(propertyId, rest, context);
+
+    revalidatePath("/properties");
+    revalidatePath(`/properties/${propertyId}`);
     return { ok: true, data: null };
   } catch (error) {
     return fail(error);
