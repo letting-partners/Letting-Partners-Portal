@@ -75,7 +75,12 @@ const startSchema = z.object({
     .min(1, "Add the advert link this number came from.")
     .max(2000)
     .refine((value) => /^https?:\/\/\S+$/i.test(value), "Enter a full link, starting with https://"),
-  openingNote: z.string().trim().min(1, "Add a note about this call.").max(2000),
+  /*
+   * Optional. The advert link is knowable before dialling and worth insisting
+   * on; a note before the call has happened is guesswork, and forcing one only
+   * produces filler.
+   */
+  openingNote: z.string().trim().max(2000).optional().nullable(),
 });
 
 export async function startCallAction(input: {

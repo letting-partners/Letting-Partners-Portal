@@ -1,5 +1,6 @@
 import "server-only";
 import { and, desc, eq, isNull } from "drizzle-orm";
+import { serverEnv } from "@/lib/env";
 import { db, type DbExecutor } from "@/db";
 import {
   commissionRules,
@@ -209,6 +210,27 @@ export const SETTING_KEYS = {
   websiteUrl: "urls.website",
   portalUrl: "urls.portal",
 } as const;
+
+/** Where the address lookup key lives when it is set in the portal. */
+export const ADDRESS_API_KEY_SETTING = "integrations.address_api_key";
+
+/**
+ * The address lookup key, preferring the one saved in the portal.
+ *
+ * A key with a monthly lookup allowance runs out at the worst possible moment,
+ * so an administrator can paste a replacement in settings without a deploy.
+ * The environment variable stays as the fallback for a fresh install.
+ */
+export async function getAddressApiKey(executor: DbExecutor = db): Promise<string | null> {
+  const stored = await getSetting<string | null>(ADDRESS_API_KEY_SETTING, null, executor);
+  if (stored?.trim()) return stored.trim();
+
+  try {
+    return serverEnv().ADDRESS_API_KEY?.trim() || null;
+  } catch {
+    return null;
+  }
+}
 
 export async function getSetting<T>(
   key: string,

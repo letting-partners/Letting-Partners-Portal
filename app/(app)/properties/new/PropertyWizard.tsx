@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useDraft, useSavedLabel } from "@/hooks/useDraft";
 import { formatGBP, monthlyToWeeklyPence, weeklyToMonthlyPence } from "@/lib/money";
 import { formatPostcode, isValidPostcode } from "@/lib/postcode";
+import type { AddressLookupResponse, AddressSuggestion } from "@/lib/address";
 import { formatUKPhone } from "@/lib/phone";
 import {
   checkDuplicatesAction,
@@ -41,11 +42,17 @@ type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 /** Whether step 1 creates a landlord or picks one already on the system. */
 type LandlordMode = "NEW" | "EXISTING";
 
+/*
+ * The order a call actually goes in. Features come first because that is what
+ * a landlord volunteers - how many rooms, what is included - and the address
+ * comes later, once they have given the postcode and door number that the
+ * features step now collects.
+ */
 const STEPS: { index: Step; label: string }[] = [
-  { index: 1, label: "Landlord" },
-  { index: 2, label: "Address" },
+  { index: 1, label: "Client" },
+  { index: 2, label: "Features" },
   { index: 3, label: "Type" },
-  { index: 4, label: "Features" },
+  { index: 4, label: "Address" },
   { index: 5, label: "Rent" },
   { index: 6, label: "Public details" },
   { index: 7, label: "Review" },
@@ -85,6 +92,7 @@ type WizardState = {
   landlordEmail: string;
   landlordPhone: string;
   landlordGender: string;
+  landlordDealerType: "LANDLORD" | "AGENT";
 
   addressLine1: string;
   addressLine2: string;
@@ -136,6 +144,7 @@ function initialState(phone: string, display: string): WizardState {
     landlordEmail: "",
     landlordPhone: display || (phone ? formatUKPhone(phone) : ""),
     landlordGender: "PREFER_NOT_TO_SAY",
+    landlordDealerType: "LANDLORD",
 
     addressLine1: "",
     addressLine2: "",
@@ -300,6 +309,7 @@ export default function PropertyWizard({
         email: state.landlordEmail || null,
         phone: state.landlordPhone,
         gender: state.landlordGender,
+        dealerType: state.landlordDealerType,
       });
 
       if (!result.ok) {
@@ -339,7 +349,7 @@ export default function PropertyWizard({
       }
 
       setDuplicates([]);
-      setStep(3);
+      setStep(5);
     });
   }
 
@@ -393,7 +403,7 @@ export default function PropertyWizard({
     const featuresError = validateFeaturesStep();
     if (featuresError) {
       setError(featuresError);
-      setStep(4);
+      setStep(2);
       return;
     }
 
@@ -430,7 +440,14 @@ export default function PropertyWizard({
         doorNumber: state.doorNumber || null,
         area: state.area || state.town || null,
 
-        features: state.features as Record<string, boolean | null>,
+        /*
+         * Anything left blank is a No. On a call an agent ticks what the
+         * property has and moves on; treating the rest as unknown left
+         * listings permanently half-answered.
+         */
+        features: Object.fromEntries(
+          FEATURES.map((feature) => [feature.key, state.features[feature.key] === true]),
+        ),
         livingRoom: isStudio ? null : state.livingRoom,
 
         numberOfRooms: isStudio || !state.numberOfRooms ? null : Number(state.numberOfRooms),
@@ -480,7 +497,7 @@ export default function PropertyWizard({
 
   const canContinue = (() => {
     if (step === 1) return Boolean(state.landlordName.trim() && state.landlordPhone.trim());
-    if (step === 2) return Boolean(state.addressLine1.trim() && state.postcode.trim());
+    if (step === 4) return Boolean(state.addressLine1.trim() && state.postcode.trim());
     return true;
   })();
 
@@ -529,6 +546,17 @@ export default function PropertyWizard({
           )}
 
           {step === 2 && (
+            <StepFeatures
+              state={state}
+              update={update}
+              isStudio={isStudio}
+              setAvailableRooms={setAvailableRooms}
+            />
+          )}
+
+          {step === 3 && <StepType state={state} update={update} />}
+
+          {step === 4 && (
             <StepAddress
               state={state}
               update={update}
@@ -537,20 +565,11 @@ export default function PropertyWizard({
               onAcknowledge={() => {
                 setDuplicatesAcknowledged(true);
                 setDuplicates([]);
-                setStep(3);
+                setStep(5);
               }}
             />
           )}
 
-          {step === 3 && <StepType state={state} update={update} />}
-          {step === 4 && (
-            <StepFeatures
-              state={state}
-              update={update}
-              isStudio={isStudio}
-              setAvailableRooms={setAvailableRooms}
-            />
-          )}
           {step === 5 && <StepRent state={state} update={update} />}
           {step === 6 && <StepPublicDetails state={state} update={update} />}
           {step === 7 && <StepReview state={state} isStudio={isStudio} />}
@@ -593,7 +612,7 @@ export default function PropertyWizard({
                 </button>
               )}
 
-              {step === 2 && (
+              {step === 4 && (
                 <button
                   type="button"
                   className="btn btn--primary"
@@ -606,7 +625,7 @@ export default function PropertyWizard({
                 </button>
               )}
 
-              {step > 2 && step < 7 && (
+              {step > 1 && step < 7 && step !== 4 && (
                 <button
                   type="button"
                   className="btn btn--primary"
@@ -614,7 +633,7 @@ export default function PropertyWizard({
                     // Say why rather than disabling: a dead button leaves the
                     // agent hunting for the field that is wrong.
                     const stepError =
-                      step === 4
+                      step === 2
                         ? validateFeaturesStep()
                         : step === 5
                           ? validateRentStep()
@@ -675,11 +694,11 @@ function StepLandlord({
   return (
     <div className="stack">
       <div>
-        <h2>Landlord</h2>
+        <h2>Client</h2>
         <p className="muted small" style={{ marginTop: 3 }}>
           {mode === "EXISTING"
-            ? "Find the landlord already on the system."
-            : "The phone number becomes this landlord's permanent identity on the system."}
+            ? "Find the client already on the system."
+            : "The phone number becomes this client's permanent identity on the system."}
         </p>
       </div>
 
@@ -693,14 +712,14 @@ function StepLandlord({
             className={mode === "NEW" ? "btn btn--primary" : "btn btn--secondary"}
             onClick={() => onModeChange("NEW")}
           >
-            New landlord
+            New client
           </button>
           <button
             type="button"
             className={mode === "EXISTING" ? "btn btn--primary" : "btn btn--secondary"}
             onClick={() => onModeChange("EXISTING")}
           >
-            Existing landlord
+            Existing client
           </button>
         </div>
       )}
@@ -718,9 +737,37 @@ function StepLandlord({
       )}
 
       <div className="form-grid">
+        <div className="field" style={{ gridColumn: "1 / -1" }}>
+          <span className="field-label">Who is the client?</span>
+          <div className="row row--wrap">
+            {(
+              [
+                ["LANDLORD", "Landlord"],
+                ["AGENT", "Agent"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                disabled={disabled}
+                className={
+                  state.landlordDealerType === value ? "btn btn--primary" : "btn btn--secondary"
+                }
+                onClick={() => update({ landlordDealerType: value })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <span className="field-hint">
+            An agent is someone letting the property on an owner&apos;s behalf, not our own staff.
+          </span>
+        </div>
+
         <div className="field">
           <label className="field-label" htmlFor="landlord-name">
-            Landlord name<span className="required">*</span>
+            {state.landlordDealerType === "AGENT" ? "Agent name" : "Landlord name"}
+            <span className="required">*</span>
           </label>
           <input
             id="landlord-name"
@@ -886,6 +933,73 @@ function StepAddress({
   acknowledged: boolean;
   onAcknowledge: () => void;
 }) {
+  const [lookup, setLookup] = useState<AddressSuggestion[]>([]);
+  const [looking, setLooking] = useState(false);
+  const [lookupNote, setLookupNote] = useState<string | null>(null);
+
+  /*
+   * Looks the postcode up as soon as the step opens. It was collected two
+   * steps earlier, so by the time an agent reaches the address there is
+   * usually a list waiting rather than a form to type.
+   */
+  useEffect(() => {
+    const postcode = state.postcode.trim();
+    if (!postcode) return;
+
+    let cancelled = false;
+    setLooking(true);
+    setLookupNote(null);
+
+    fetch(`/api/address?postcode=${encodeURIComponent(postcode)}`)
+      .then((response) => response.json())
+      .then((data: AddressLookupResponse) => {
+        if (cancelled) return;
+        setLookup(data.addresses ?? []);
+
+        if ((data.addresses ?? []).length === 0) {
+          setLookupNote(
+            data.reason === "not-configured"
+              ? "Address lookup is not set up, so type the address below."
+              : data.reason === "unauthorized"
+                ? "The address lookup key was refused. Type the address below."
+                : "No addresses found for that postcode. Type it below.",
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLookupNote("Address lookup is unavailable. Type the address below.");
+      })
+      .finally(() => {
+        if (!cancelled) setLooking(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state.postcode]);
+
+  function choose(address: AddressSuggestion) {
+    update({
+      addressLine1: address.line1,
+      addressLine2: address.line2 ?? "",
+      town: address.town ?? "",
+      postcode: address.postcode || state.postcode,
+      area: state.area || address.town || "",
+    });
+  }
+
+  const doorNumber = state.doorNumber.trim().toLowerCase();
+
+  // The door number was asked for in the features step, so the address it
+  // belongs to is offered first.
+  const ordered = doorNumber
+    ? [...lookup].sort((a, b) => {
+        const aMatch = a.line1.toLowerCase().startsWith(doorNumber) ? 0 : 1;
+        const bMatch = b.line1.toLowerCase().startsWith(doorNumber) ? 0 : 1;
+        return aMatch - bMatch;
+      })
+    : lookup;
+
   return (
     <div className="stack">
       <div>
@@ -894,6 +1008,45 @@ function StepAddress({
           The full address stays internal. The website only shows the area and outward code.
         </p>
       </div>
+
+      {state.postcode && (
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">
+              Addresses at {state.postcode}
+              {looking && <span className="spinner" aria-hidden="true" style={{ marginLeft: 8 }} />}
+            </span>
+          </div>
+
+          <div className="card-body">
+            {lookupNote ? (
+              <p className="subtle small">{lookupNote}</p>
+            ) : ordered.length === 0 ? (
+              <p className="subtle small">Looking up that postcode...</p>
+            ) : (
+              <div className="stack--sm stack">
+                {ordered.slice(0, 12).map((address) => (
+                  <button
+                    key={address.id}
+                    type="button"
+                    className={
+                      state.addressLine1 === address.line1
+                        ? "card card--selectable is-selected"
+                        : "card card--selectable"
+                    }
+                    onClick={() => choose(address)}
+                  >
+                    <div className="card-body row row--between">
+                      <span>{address.label}</span>
+                      <span className="subtle small">{address.town}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {duplicates.length > 0 && !acknowledged && (
         <div className="alert alert--warning">
@@ -959,18 +1112,6 @@ function StepAddress({
             value={state.town}
             onChange={(event) => update({ town: event.target.value })}
             placeholder="Manchester"
-          />
-        </div>
-
-        <div className="field">
-          <label className="field-label" htmlFor="county">
-            County
-          </label>
-          <input
-            id="county"
-            className="input"
-            value={state.county}
-            onChange={(event) => update({ county: event.target.value })}
           />
         </div>
 
@@ -1094,7 +1235,7 @@ function StepFeatures({
       <div>
         <h2>Features</h2>
         <p className="muted small" style={{ marginTop: 3 }}>
-          Leave anything you do not know unanswered - it can be filled in later.
+          Mark what the property has. Anything left blank is recorded as a no.
         </p>
       </div>
 

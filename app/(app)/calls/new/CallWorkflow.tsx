@@ -103,11 +103,6 @@ export default function CallWorkflow({
       setError("Add the advert link this number came from.");
       return;
     }
-    if (!openingNote.trim()) {
-      setError("Add a note about this call.");
-      return;
-    }
-
     startTransition(async () => {
       const result = await startCallAction({
         phone,
@@ -207,7 +202,7 @@ export default function CallWorkflow({
 
               <div className="field">
                 <label className="field-label" htmlFor="call-opening-note">
-                  Note<span className="required">*</span>
+                  Note
                 </label>
                 <textarea
                   id="call-opening-note"

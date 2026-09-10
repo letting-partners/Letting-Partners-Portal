@@ -6,14 +6,29 @@ import { Card, DefinitionList, PageHeader } from "@/components/ui/layout";
 import { formatDateTime } from "@/lib/dates";
 import { formatRate } from "@/lib/money";
 import { publicEnv } from "@/lib/env";
-import { getExchangeRateDetail, getSetting, SETTING_KEYS } from "@/services/settings";
+import {
+  getAddressApiKey,
+  getExchangeRateDetail,
+  getSetting,
+  SETTING_KEYS,
+} from "@/services/settings";
 import { isStorageConfigured, storageDriver } from "@/services/storage";
 import CompanySettings from "./CompanySettings";
+import AddressApiSettings, { ADDRESS_API_KEY_SETTING } from "./AddressApiSettings";
 
 export const metadata: Metadata = { title: "System settings" };
 
 export default async function SettingsPage() {
   await pageAdmin();
+
+  /*
+   * Both are read: one to know whether lookup works at all, the other to say
+   * whether the key in use came from this screen or the environment.
+   */
+  const [addressKey, storedAddressKey] = await Promise.all([
+    getAddressApiKey(),
+    getSetting<string | null>(ADDRESS_API_KEY_SETTING, null),
+  ]);
 
   const [companyName, companyPhone, companyEmail, rate] = await Promise.all([
     getSetting(SETTING_KEYS.companyName, "Letting Partners LTD"),
@@ -68,6 +83,14 @@ export default async function SettingsPage() {
               The key lives in the environment of both projects and must match exactly. It is
               never sent to the browser.
             </p>
+          </Card>
+
+          <Card title="Address lookup">
+            <AddressApiSettings
+              configured={Boolean(addressKey)}
+              hint={addressKey ? addressKey.slice(-4) : null}
+              fromEnvironment={!storedAddressKey && Boolean(addressKey)}
+            />
           </Card>
 
           <Card title="Integrations">

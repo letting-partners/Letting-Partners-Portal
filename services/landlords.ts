@@ -60,6 +60,8 @@ export type CreateLandlordInput = {
   phone: string;
   alternatePhone?: string | null;
   gender: Gender;
+  /** Landlord by default; an outside agent when they act for an owner. */
+  dealerType?: "LANDLORD" | "AGENT";
   source?: ContactSource;
   /** Admins may attribute a manually created landlord to a team. */
   originatingFronterId?: string | null;
@@ -132,6 +134,7 @@ export async function createLandlord(
         normalizedPhone: normalization.normalized,
         alternatePhone: input.alternatePhone?.trim() || null,
         gender: input.gender,
+        dealerType: input.dealerType ?? "LANDLORD",
         source: input.source ?? (context.isFronter ? "CALL" : "MANUAL"),
         originatingFronterId: ownership.originatingFronterId,
         assignedAgentId: ownership.assignedAgentId,
@@ -357,6 +360,7 @@ export async function getLandlord(id: string, context: AccessContext) {
 
 export type UpdateLandlordInput = {
   name?: string;
+  dealerType?: "LANDLORD" | "AGENT";
   email?: string | null;
   alternatePhone?: string | null;
   gender?: Gender;
@@ -382,6 +386,7 @@ export async function updateLandlord(
     patch.alternatePhone = input.alternatePhone?.trim() || null;
   }
   if (input.gender !== undefined) patch.gender = input.gender;
+  if (input.dealerType !== undefined) patch.dealerType = input.dealerType;
 
   await db.transaction(async (tx) => {
     await tx.update(landlords).set(patch).where(eq(landlords.id, id));

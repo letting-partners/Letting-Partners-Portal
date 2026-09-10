@@ -191,6 +191,12 @@ export const internalConversationTypeEnum = pgEnum("internal_conversation_type",
 /** The lifecycle of a website article. */
 export const blogStatusEnum = pgEnum("blog_status", ["DRAFT", "PUBLISHED", "TRASHED"]);
 
+/**
+ * Who brings a property to us. An outside agent is another company's letting
+ * agent, not one of our own staff - our people are users, not dealers.
+ */
+export const dealerTypeEnum = pgEnum("dealer_type", ["LANDLORD", "AGENT"]);
+
 export const notificationTypeEnum = pgEnum("notification_type", [
   "FOLLOW_UP_DUE",
   "CROSS_SELL_REQUEST",

@@ -44,6 +44,7 @@ const landlordSchema = z.object({
   email: z.string().trim().max(254).optional().nullable(),
   phone: z.string().trim().min(1, "Enter a phone number."),
   gender: z.enum(genderEnum.enumValues),
+  dealerType: z.enum(["LANDLORD", "AGENT"]).optional(),
 });
 
 export async function createLandlordAction(input: {
@@ -51,6 +52,7 @@ export async function createLandlordAction(input: {
   email?: string | null;
   phone: string;
   gender: string;
+  dealerType?: "LANDLORD" | "AGENT";
 }): Promise<ActionResult<{ landlordId: string }>> {
   try {
     const parsed = landlordSchema.parse(input);
@@ -66,6 +68,7 @@ export async function createLandlordAction(input: {
         email: parsed.email || null,
         phone: parsed.phone,
         gender: parsed.gender,
+        dealerType: parsed.dealerType,
       },
       context,
     );

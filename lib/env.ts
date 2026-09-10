@@ -36,6 +36,12 @@ const serverSchema = z.object({
   /** Custom domain or public development URL for the bucket, no trailing slash. */
   S3_PUBLIC_BASE_URL: z.string().optional(),
 
+  /**
+   * goaddress.io, for postcode lookup in the property wizard. Optional: the
+   * address step falls back to being typed by hand without it.
+   */
+  ADDRESS_API_KEY: z.string().optional(),
+
   /** Legacy fallback, used only when no S3 bucket is configured. */
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
 

@@ -8,7 +8,7 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { contactSourceEnum, genderEnum } from "./enums";
+import { contactSourceEnum, dealerTypeEnum, genderEnum } from "./enums";
 import { users } from "./users";
 
 /**
@@ -21,6 +21,17 @@ export const landlords = pgTable(
   "landlords",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /**
+     * Whether this contact owns the property or is an outside agent letting it
+     * on an owner's behalf. Same fields either way; it changes how they are
+     * addressed and lets calls and reports tell the two apart.
+     *
+     * The interface calls this the client, which reads better for both a
+     * landlord and an outside agent. Kept as dealerType here rather than
+     * spending a migration on a name.
+     */
+    dealerType: dealerTypeEnum("dealer_type").notNull().default("LANDLORD"),
+
     name: varchar("name", { length: 160 }).notNull(),
     email: varchar("email", { length: 254 }),
 
