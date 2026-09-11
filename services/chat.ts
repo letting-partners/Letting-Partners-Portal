@@ -1,5 +1,19 @@
 import "server-only";
-import { and, asc, count, desc, eq, gt, inArray, isNull, ne, or, sql as raw, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  or,
+  sql as raw,
+  type SQL,
+} from "drizzle-orm";
 import { db, type Transaction } from "@/db";
 import {
   customerConversationEvents,
@@ -281,6 +295,7 @@ export async function getVisitorThread(visitorToken: string) {
   return {
     conversationId: conversation.id,
     status: conversation.status,
+    agent: await threadAgent(conversation.assignedAgentId, conversation.id),
     messages: messages.map((message) => ({
       id: message.id,
       sender: message.sender,
@@ -288,6 +303,73 @@ export async function getVisitorThread(visitorToken: string) {
       createdAt: message.createdAt.toISOString(),
       senderName: message.sender === "STAFF" ? (message.senderName ?? "Letting Partners") : null,
     })),
+  };
+}
+
+export type VisitorThreadAgent = {
+  name: string;
+  jobTitle: string | null;
+  avatarUrl: string | null;
+  online: boolean;
+};
+
+/**
+ * Who the visitor is talking to, for the widget to put a face and a name in
+ * its header.
+ *
+ * The assigned agent if there is one - a property enquiry is routed to whoever
+ * published the listing before anybody has typed. Otherwise whoever last
+ * replied, because a chat from the shared queue belongs to the person who
+ * picked it up, and until they do there is nobody to name.
+ *
+ * Only what a visitor should see: a name, a role, a photo and whether that
+ * person is at their desk. No email, no phone, no id.
+ */
+async function threadAgent(
+  assignedAgentId: string | null,
+  conversationId: string,
+): Promise<VisitorThreadAgent | null> {
+  let agentId = assignedAgentId;
+
+  if (!agentId) {
+    const [lastReply] = await db
+      .select({ userId: customerMessages.senderUserId })
+      .from(customerMessages)
+      .where(
+        and(
+          eq(customerMessages.conversationId, conversationId),
+          eq(customerMessages.sender, "STAFF"),
+          isNotNull(customerMessages.senderUserId),
+        ),
+      )
+      .orderBy(desc(customerMessages.createdAt))
+      .limit(1);
+
+    agentId = lastReply?.userId ?? null;
+  }
+
+  if (!agentId) return null;
+
+  const [row] = await db
+    .select({
+      fullName: users.fullName,
+      jobTitle: users.jobTitle,
+      avatarUrl: users.avatarUrl,
+      lastSeenAt: userPresence.lastSeenAt,
+      status: users.status,
+    })
+    .from(users)
+    .leftJoin(userPresence, eq(userPresence.userId, users.id))
+    .where(eq(users.id, agentId))
+    .limit(1);
+
+  if (!row || row.status !== "ACTIVE") return null;
+
+  return {
+    name: row.fullName,
+    jobTitle: row.jobTitle,
+    avatarUrl: row.avatarUrl,
+    online: isOnline(row.lastSeenAt),
   };
 }
 
