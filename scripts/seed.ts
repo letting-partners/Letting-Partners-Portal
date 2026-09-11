@@ -134,10 +134,10 @@ async function main() {
       fullName: "Admin",
       role: "SUPER_ADMIN",
       jobTitle: "Director",
-      phone: "07782 273674",
-      normalizedPhone: normalizeUKPhone("07782 273674"),
+      phone: "0203 897 7033",
+      normalizedPhone: normalizeUKPhone("0203 897 7033"),
       publicEmail: "info@lettingpartners.co.uk",
-      publicPhone: "07782 273674",
+      publicPhone: "0203 897 7033",
     })
     .returning();
 
@@ -270,7 +270,7 @@ async function main() {
     },
     {
       key: "company.phone",
-      value: "07782 273674" as never,
+      value: "0203 897 7033" as never,
       updatedById: admin.id,
     },
     {
